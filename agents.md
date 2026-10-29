@@ -1,0 +1,4 @@
+- Antes de sair fazendo:
+-- Analise o código do projeto.
+-- Entenda a causa.
+-- Me proponha a melhor solução para o problema.
