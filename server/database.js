@@ -79,6 +79,27 @@ export function initDatabase() {
       PRIMARY KEY (codigo_municipio, uf, ano, turno, cargo)
     );
 
+    CREATE TABLE IF NOT EXISTS apuracao_secao (
+      codigo_municipio TEXT NOT NULL,
+      uf TEXT NOT NULL,
+      ano INTEGER NOT NULL,
+      turno INTEGER NOT NULL,
+      zona_id TEXT NOT NULL,
+      secao_id TEXT NOT NULL,
+      cargo TEXT NOT NULL,
+      eleitores_aptos INTEGER,
+      comparecimento INTEGER,
+      abstencoes INTEGER,
+      votos_apurados INTEGER,
+      votos_validos INTEGER,
+      votos_brancos INTEGER,
+      votos_nulos INTEGER,
+      candidatos_json TEXT,
+      fonte TEXT DEFAULT 'BOLETIM_URNA',
+      atualizado_em TEXT,
+      PRIMARY KEY (codigo_municipio, uf, ano, turno, zona_id, secao_id, cargo)
+    );
+
     CREATE TABLE IF NOT EXISTS sync_status (
       chave TEXT PRIMARY KEY,
       atualizado_em TEXT
@@ -88,6 +109,7 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_zonas_muni ON zonas(codigo_municipio, uf);
     CREATE INDEX IF NOT EXISTS idx_locais_zona ON locais_votacao(zona_id, codigo_municipio, uf);
     CREATE INDEX IF NOT EXISTS idx_secoes_local ON secoes(local_id, zona_id, codigo_municipio, uf);
+    CREATE INDEX IF NOT EXISTS idx_apuracao_secao_lookup ON apuracao_secao(codigo_municipio, uf, ano, turno, zona_id, secao_id);
   `);
 
   // Popula os 27 estados do Brasil se ainda não existirem

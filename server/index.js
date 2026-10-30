@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { db, initDatabase } from './database.js';
-import { syncUfConfig, getOuSincronizaApuracao } from './tseSync.js';
+import { syncUfConfig, getOuSincronizaApuracao, getOuSincronizaApuracaoSecao } from './tseSync.js';
 
 initDatabase();
 
@@ -136,15 +136,30 @@ app.get('/api/resultado-secao', async (req, res) => {
     const codigoMunicipio = (req.query.codigoMunicipio || '').toString();
     const zonaId = (req.query.zonaId || '').toString();
     const secaoId = (req.query.secaoId || '').toString();
-    const ano = parseInt(req.query.ano || '2024', 10);
+    const ano = parseInt(req.query.ano || '2026', 10);
 
-    // Obtém resultado oficial da eleição consolidada do município no TSE / SQLite
-    const apuracao = await getOuSincronizaApuracao(uf, codigoMunicipio, ano);
+    // 1º Tenta obter o Boletim de Urna (BU) específico e individual dessa seção
+    let apuracao = null;
+    if (zonaId && secaoId) {
+      apuracao = await getOuSincronizaApuracaoSecao(uf, codigoMunicipio, zonaId, secaoId, ano);
+    }
+
+    // Se o BU individual não estiver disponível no TSE, faz fallback para o consolidado municipal
+    if (!apuracao || (!apuracao.turno1 && !apuracao.turno2)) {
+      const consolidado = await getOuSincronizaApuracao(uf, codigoMunicipio, ano);
+      apuracao = {
+        turno1: consolidado.turno1,
+        turno2: consolidado.turno2,
+        fonte: 'CONSOLIDADO_MUNICIPAL',
+        urnaModelo: `Urna Eletrônica Oficial TSE - Seção ${secaoId} (Zona ${parseInt(zonaId, 10) || zonaId})`
+      };
+    }
 
     res.json({
       id: secaoId,
       numero: secaoId,
-      urnaEletronica: `Urna Eletrônica Oficial TSE - Seção ${secaoId} (Zona ${parseInt(zonaId, 10) || zonaId})`,
+      fonte: apuracao.fonte || 'BOLETIM_URNA_INDIVIDUAL',
+      urnaEletronica: apuracao.urnaModelo || `Urna Eletrônica Oficial TSE - Seção ${secaoId} (Zona ${parseInt(zonaId, 10) || zonaId})`,
       primeiroTurno: apuracao.turno1,
       segundoTurno: apuracao.turno2
     });

@@ -22,6 +22,393 @@ async function fetchTSE(url) {
 }
 
 /**
+ * Função utilitária para fetch com buffer binário
+ */
+async function fetchTSEBuffer(url) {
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': USER_AGENT
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Erro TSE HTTP ${response.status} ao acessar arquivo: ${url}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
+/**
+ * Funções utilitárias para decodificação ASN.1/BER dos Boletins de Urna (-bu.dat)
+ */
+function parseTLV(buffer, offset = 0) {
+  if (offset >= buffer.length) return null;
+  const tag = buffer[offset];
+  let len = buffer[offset + 1];
+  let headerLen = 2;
+  if (len & 0x80) {
+    const numBytes = len & 0x7f;
+    len = 0;
+    for (let i = 0; i < numBytes; i++) {
+      len = (len << 8) | buffer[offset + 2 + i];
+    }
+    headerLen = 2 + numBytes;
+  }
+  return {
+    tag,
+    headerLen,
+    len,
+    totalLen: headerLen + len,
+    offset,
+    valueOffset: offset + headerLen,
+    value: buffer.subarray(offset + headerLen, offset + headerLen + len)
+  };
+}
+
+function parseChildren(buffer, offset, length) {
+  const list = [];
+  let cur = offset;
+  while (cur < offset + length) {
+    const tlv = parseTLV(buffer, cur);
+    if (!tlv) break;
+    list.push(tlv);
+    cur += tlv.totalLen;
+  }
+  return list;
+}
+
+function parseInteger(b) {
+  let val = 0;
+  for (let i = 0; i < b.length; i++) {
+    val = (val << 8) | b[i];
+  }
+  return val;
+}
+
+/**
+ * Mapeia os dados descritivos dos candidatos para preencher nomes e legendas nos BUs
+ */
+async function getCandidatosMetadata(uf, codigoMunicipio, ano, turno) {
+  const ufLower = uf.toLowerCase();
+  const is2026 = ano === 2026;
+  const eleicaoId = is2026 ? (turno === 2 ? '6258' : '6257') : (turno === 2 ? '620' : '619');
+  const cargoId = is2026 ? '0001' : '0011';
+  const eleicaoPadded = eleicaoId.padStart(6, '0');
+
+  try {
+    const url = `${TSE_BASE}/ele${ano}/${eleicaoId}/dados/${ufLower}/${ufLower}${codigoMunicipio}-c${cargoId}-e${eleicaoPadded}-u.json`;
+    const data = await fetchTSE(url);
+    const map = new Map();
+    if (Array.isArray(data.carg?.[0]?.agr)) {
+      for (const ag of data.carg[0].agr) {
+        if (Array.isArray(ag.par)) {
+          for (const p of ag.par) {
+            if (Array.isArray(p.cand)) {
+              for (const c of p.cand) {
+                map.set(String(c.n), {
+                  numero: String(c.n),
+                  nome: c.nmu || c.nm || '',
+                  partido: p.nm || p.sg || '',
+                  siglaPartido: p.sg || ''
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+    return map;
+  } catch (err) {
+    console.warn(`[TSE Sync] Aviso ao carregar catálogo de candidatos (${ano} - T${turno}): ${err.message}`);
+    return new Map();
+  }
+}
+
+/**
+ * Baixa e decodifica o Boletim de Urna (BU) oficial de uma seção específica
+ */
+export async function getOuSincronizaApuracaoSecao(uf, codigoMunicipio, zonaId, secaoId, ano = 2026) {
+  const ufUpper = uf.toUpperCase();
+  const ufLower = uf.toLowerCase();
+  const zonaNorm = String(parseInt(zonaId, 10));
+  const secaoNorm = String(parseInt(secaoId, 10));
+
+  // 1. Verifica se já está gravado na tabela apuracao_secao do SQLite
+  const cached1T = db.prepare(`
+    SELECT * FROM apuracao_secao 
+    WHERE codigo_municipio = ? AND uf = ? AND ano = ? AND zona_id = ? AND secao_id = ? AND turno = 1
+  `).get(codigoMunicipio, ufUpper, ano, zonaNorm, secaoNorm);
+
+  if (cached1T) {
+    const cached2T = db.prepare(`
+      SELECT * FROM apuracao_secao 
+      WHERE codigo_municipio = ? AND uf = ? AND ano = ? AND zona_id = ? AND secao_id = ? AND turno = 2
+    `).get(codigoMunicipio, ufUpper, ano, zonaNorm, secaoNorm);
+
+    return {
+      turno1: formatarResultadoDb(cached1T),
+      turno2: cached2T ? formatarResultadoDb(cached2T) : null,
+      fonte: 'BOLETIM_URNA_INDIVIDUAL',
+      urnaModelo: cached1T.fonte || 'Urna Oficial TSE'
+    };
+  }
+
+  // 2. Se não estiver no SQLite, busca o BU oficial diretamente no TSE
+  console.log(`[TSE Sync] Baixando Boletim de Urna oficial da Seção ${secaoNorm} (Zona ${zonaNorm}) - Ano ${ano}...`);
+
+  const zPadded = zonaNorm.padStart(4, '0');
+  const sPadded = secaoNorm.padStart(4, '0');
+
+  // Mapeamento de pleitos oficiais do TSE para Arquivo-Urna
+  // 2026: 3220 (1º Turno Geral), 3221 (2º Turno Geral)
+  // 2024: 452 (1º Turno Municipal), 453 (2º Turno Municipal)
+  const pleito1T = ano === 2026 ? '3220' : '452';
+  const pleito2T = ano === 2026 ? '3221' : '453';
+  const eleicaoAlvo1T = ano === 2026 ? 6257 : 619;
+  const eleicaoAlvo2T = ano === 2026 ? 6258 : 620;
+  const cargoAlvo = ano === 2026 ? 1 : 11; // 1: Presidente, 11: Prefeito
+  const cargoNome = ano === 2026 ? 'Presidente' : 'Prefeito';
+
+  let resultado1T = null;
+  let resultado2T = null;
+  let urnaModeloDesc = null;
+
+  // Processa 1º Turno
+  try {
+    const candMap1T = await getCandidatosMetadata(ufUpper, codigoMunicipio, ano, 1);
+    const parsed1T = await baixarEDecodificarBU(
+      ano,
+      pleito1T,
+      eleicaoAlvo1T,
+      cargoAlvo,
+      cargoNome,
+      ufLower,
+      codigoMunicipio,
+      zPadded,
+      sPadded,
+      candMap1T,
+      1
+    );
+
+    if (parsed1T) {
+      resultado1T = parsed1T.resultado;
+      urnaModeloDesc = parsed1T.urnaModelo;
+      salvarResultadoSecaoDb(codigoMunicipio, ufUpper, ano, 1, zonaNorm, secaoNorm, cargoNome, resultado1T, urnaModeloDesc);
+    }
+  } catch (err) {
+    console.warn(`[TSE Sync] BU 1º Turno não obtido para Seção ${secaoNorm}: ${err.message}`);
+  }
+
+  // Processa 2º Turno
+  try {
+    const candMap2T = await getCandidatosMetadata(ufUpper, codigoMunicipio, ano, 2);
+    const parsed2T = await baixarEDecodificarBU(
+      ano,
+      pleito2T,
+      eleicaoAlvo2T,
+      cargoAlvo,
+      cargoNome,
+      ufLower,
+      codigoMunicipio,
+      zPadded,
+      sPadded,
+      candMap2T,
+      2
+    );
+
+    if (parsed2T) {
+      resultado2T = parsed2T.resultado;
+      salvarResultadoSecaoDb(codigoMunicipio, ufUpper, ano, 2, zonaNorm, secaoNorm, cargoNome, resultado2T, urnaModeloDesc);
+    }
+  } catch (err) {
+    console.log(`[TSE Sync] BU 2º Turno não aplicável/disponível para Seção ${secaoNorm} (${ano})`);
+  }
+
+  if (resultado1T || resultado2T) {
+    return {
+      turno1: resultado1T,
+      turno2: resultado2T,
+      fonte: 'BOLETIM_URNA_INDIVIDUAL',
+      urnaModelo: urnaModeloDesc || 'Urna Oficial TSE'
+    };
+  }
+
+  return null;
+}
+
+async function baixarEDecodificarBU(
+  ano,
+  pleito,
+  eleicaoAlvo,
+  cargoAlvo,
+  cargoNome,
+  ufLower,
+  codigoMunicipio,
+  zPadded,
+  sPadded,
+  candMap,
+  turno
+) {
+  const pPadded = pleito.padStart(6, '0');
+  const urlAux = `${TSE_BASE}/ele${ano}/arquivo-urna/${pleito}/dados/${ufLower}/${codigoMunicipio}/${zPadded}/${sPadded}/p${pPadded}-${ufLower}-m${codigoMunicipio}-z${zPadded}-s${sPadded}-aux.json`;
+
+  const dataAux = await fetchTSE(urlAux);
+  const hashObj = dataAux.hashes?.[0];
+  if (!hashObj) return null;
+
+  const hash = hashObj.hash;
+  const buEntry = hashObj.arq?.find((a) => a.tp === 'bu');
+  if (!buEntry) return null;
+
+  const buName = buEntry.nm;
+  const urlBu = `${TSE_BASE}/ele${ano}/arquivo-urna/${pleito}/dados/${ufLower}/${codigoMunicipio}/${zPadded}/${sPadded}/${hash}/${buName}`;
+  const buf = await fetchTSEBuffer(urlBu);
+
+  // Decodifica ASN.1/BER da urna
+  const envelope = parseTLV(buf, 0);
+  if (!envelope) return null;
+
+  const innerBuf = parseChildren(buf, envelope.valueOffset, envelope.len).find((x) => x.tag === 0x04)?.value;
+  if (!innerBuf) return null;
+
+  const buRoot = parseTLV(innerBuf, 0);
+  if (!buRoot) return null;
+
+  const buFields = parseChildren(innerBuf, buRoot.valueOffset, buRoot.len);
+
+  // Identificação do Modelo/Software da Urna (Campo 2)
+  let urnaModeloDesc = 'Urna Eletrônica Oficial TSE';
+  try {
+    const urnaFields = parseChildren(innerBuf, buFields[2].valueOffset, buFields[2].len);
+    const software = urnaFields[1]?.value?.toString('latin1')?.trim();
+    const cargaSeq = parseChildren(innerBuf, urnaFields[2].valueOffset, urnaFields[2].len);
+    const cargaDetails = parseChildren(innerBuf, cargaSeq[1].valueOffset, cargaSeq[1].len);
+    const numUrna = parseInteger(cargaDetails[0].value);
+    if (numUrna && software) {
+      urnaModeloDesc = `Urna nº ${numUrna} (${software})`;
+    }
+  } catch (e) {
+    // modelo fallback
+  }
+
+  // Lista com os resultados por eleição (Campo 8)
+  const eleicoes = parseChildren(innerBuf, buFields[8].valueOffset, buFields[8].len);
+
+  for (const el of eleicoes) {
+    const elFields = parseChildren(innerBuf, el.valueOffset, el.len);
+    const idEleicao = parseInteger(elFields[0].value);
+    const aptos = parseInteger(elFields[1].value);
+
+    if (idEleicao === eleicaoAlvo) {
+      const resVotacaoList = parseChildren(innerBuf, elFields[4].valueOffset, elFields[4].len);
+      for (const rv of resVotacaoList) {
+        const rvFields = parseChildren(innerBuf, rv.valueOffset, rv.len);
+        const totaisCargo = parseChildren(innerBuf, rvFields[2].valueOffset, rvFields[2].len);
+        for (const tc of totaisCargo) {
+          const tcFields = parseChildren(innerBuf, tc.valueOffset, tc.len);
+          const cargoEnum = parseInteger(tcFields[0].value);
+
+          if (cargoEnum === cargoAlvo) {
+            const comp = parseInteger(rvFields[1].value);
+            const votosList = parseChildren(innerBuf, tcFields[2].valueOffset, tcFields[2].len);
+            let brancos = 0;
+            let nulos = 0;
+            let validos = 0;
+            const cands = [];
+
+            for (const v of votosList) {
+              const vFields = parseChildren(innerBuf, v.valueOffset, v.len);
+              const tipoVoto = parseInteger(vFields[0].value);
+              const qtd = parseInteger(vFields[1].value);
+
+              if (tipoVoto === 1) {
+                // Voto Nominal
+                const idVot = parseChildren(innerBuf, vFields[2].valueOffset, vFields[2].len);
+                const num = String(parseInteger(idVot[1].value));
+                validos += qtd;
+                const meta = candMap.get(num) || {
+                  numero: num,
+                  nome: `Candidato ${num}`,
+                  partido: '',
+                  siglaPartido: ''
+                };
+
+                cands.push({
+                  numero: num,
+                  nome: meta.nome,
+                  partido: meta.partido,
+                  siglaPartido: meta.siglaPartido,
+                  votos: qtd,
+                  percentual: 0
+                });
+              } else if (tipoVoto === 2) {
+                brancos += qtd;
+              } else if (tipoVoto === 3) {
+                nulos += qtd;
+              }
+            }
+
+            cands.forEach((c) => {
+              c.percentual = validos > 0 ? parseFloat(((c.votos / validos) * 100).toFixed(2)) : 0;
+            });
+            cands.sort((a, b) => b.votos - a.votos);
+
+            return {
+              urnaModelo: urnaModeloDesc,
+              resultado: {
+                turno,
+                cargo: cargoNome,
+                eleitoresAptos: aptos,
+                totalVotosApurados: comp,
+                votosValidos: validos,
+                votosBrancos: brancos,
+                votosNulos: nulos,
+                abstencoes: Math.max(0, aptos - comp),
+                candidatos: cands
+              }
+            };
+          }
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function salvarResultadoSecaoDb(codigoMunicipio, uf, ano, turno, zonaId, secaoId, cargo, res, urnaModelo) {
+  const stmt = db.prepare(`
+    INSERT OR REPLACE INTO apuracao_secao (
+      codigo_municipio, uf, ano, turno, zona_id, secao_id, cargo,
+      eleitores_aptos, comparecimento, abstencoes,
+      votos_apurados, votos_validos, votos_brancos, votos_nulos,
+      candidatos_json, fonte, atualizado_em
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  stmt.run(
+    codigoMunicipio,
+    uf,
+    ano,
+    turno,
+    zonaId,
+    secaoId,
+    cargo,
+    res.eleitoresAptos,
+    res.totalVotosApurados,
+    res.abstencoes,
+    res.totalVotosApurados,
+    res.votosValidos,
+    res.votosBrancos,
+    res.votosNulos,
+    JSON.stringify(res.candidatos),
+    urnaModelo || 'Urna Oficial TSE',
+    new Date().toISOString()
+  );
+}
+
+/**
  * Sincroniza todos os municípios, zonas e seções de uma UF a partir da API oficial do TSE
  */
 export async function syncUfConfig(uf) {
