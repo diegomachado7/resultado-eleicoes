@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ElectionService, ANOS_ELEICAO } from '../services/electionService';
-import { Municipio, ZonaEleitoral, LocalVotacao, SecaoData, CandidateVote, TurnoResult } from '../types/election';
+import { SecaoData, CandidateVote, TurnoResult } from '../types/election';
+import { SecaoSelector, SecaoSelectorValue } from './SecaoSelector';
 
 interface ComparativoPageProps {
   onVoltarParaConsulta?: () => void;
@@ -9,20 +10,23 @@ interface ComparativoPageProps {
 export function ComparativoPage({ onVoltarParaConsulta }: ComparativoPageProps) {
   const [selectedAno, setSelectedAno] = useState<number>(2026);
   const [estados, setEstados] = useState<{ sigla: string; nome: string }[]>([]);
-  const [selectedEstado, setSelectedEstado] = useState<string>('SP');
 
-  const [municipios, setMunicipios] = useState<Municipio[]>([]);
-  const [selectedMunicipio, setSelectedMunicipio] = useState<string>('69299');
+  // Configurações independentes para Urna A e Urna B
+  const [secaoA, setSecaoA] = useState<SecaoSelectorValue>({
+    uf: 'RS',
+    municipio: '88013', // Porto Alegre
+    zona: '0001',
+    local: '1015',
+    secao: '0001'
+  });
 
-  const [zonas, setZonas] = useState<ZonaEleitoral[]>([]);
-  const [selectedZona, setSelectedZona] = useState<string>('0402');
-
-  const [locais, setLocais] = useState<LocalVotacao[]>([]);
-  const [selectedLocal, setSelectedLocal] = useState<string>('');
-
-  const [secoes, setSecoes] = useState<SecaoData[]>([]);
-  const [secaoAId, setSecaoAId] = useState<string>('0018');
-  const [secaoBId, setSecaoBId] = useState<string>('0019');
+  const [secaoB, setSecaoB] = useState<SecaoSelectorValue>({
+    uf: 'AM',
+    municipio: '02550', // Manaus
+    zona: '0001',
+    local: '1015',
+    secao: '0001'
+  });
 
   const [turnoSelecionado, setTurnoSelecionado] = useState<1 | 2>(1);
 
@@ -31,7 +35,7 @@ export function ComparativoPage({ onVoltarParaConsulta }: ComparativoPageProps) 
 
   const [loading, setLoading] = useState<boolean>(false);
 
-  // 1. Carrega Estados
+  // 1. Carrega lista de Estados
   useEffect(() => {
     async function loadEstados() {
       const ufs = await ElectionService.getEstados();
@@ -40,147 +44,98 @@ export function ComparativoPage({ onVoltarParaConsulta }: ComparativoPageProps) 
     loadEstados();
   }, []);
 
-  // 2. Quando muda Estado
+  // 2. Carrega dados comparativos das Seções A e B
   useEffect(() => {
-    if (!selectedEstado) {
-      setMunicipios([]);
-      setSelectedMunicipio('');
-      return;
-    }
-    async function loadMunicipios() {
-      const munis = await ElectionService.getMunicipios(selectedEstado);
-      setMunicipios(munis);
-
-      if (munis.length > 0) {
-        const exists = munis.find((m) => m.codigoTse === selectedMunicipio);
-        const novoMuni = exists
-          ? selectedMunicipio
-          : munis.find((m) => m.codigoTse === '69299')?.codigoTse || munis[0].codigoTse;
-        setSelectedMunicipio(novoMuni);
-      } else {
-        setSelectedMunicipio('');
-      }
-    }
-    loadMunicipios();
-  }, [selectedEstado]);
-
-  // 3. Quando muda Município
-  useEffect(() => {
-    if (!selectedMunicipio) {
-      setZonas([]);
-      setSelectedZona('');
-      setLocais([]);
-      setSelectedLocal('');
-      setSecoes([]);
+    if (!secaoA.secao || !secaoB.secao || !secaoA.municipio || !secaoB.municipio) {
       return;
     }
 
-    async function loadMunicipioHierarchy() {
-      const details = await ElectionService.getMunicipioDetails(selectedEstado, selectedMunicipio);
-      if (details && Array.isArray(details.zonas) && details.zonas.length > 0) {
-        setZonas(details.zonas);
-        const targetZona = details.zonas.find((z) => z.id === selectedZona) || details.zonas[0];
-        setSelectedZona(targetZona.id);
-
-        if (targetZona.locais && targetZona.locais.length > 0) {
-          setLocais(targetZona.locais);
-          const firstLocal = targetZona.locais[0];
-          setSelectedLocal(firstLocal.id);
-
-          if (firstLocal.secoes && firstLocal.secoes.length > 0) {
-            setSecoes(firstLocal.secoes);
-            // Preserva 0018 e 0019 se existirem, senão pega primeiras
-            const has18 = firstLocal.secoes.find((s) => s.id === '0018' || s.numero === '0018');
-            const has19 = firstLocal.secoes.find((s) => s.id === '0019' || s.numero === '0019');
-
-            setSecaoAId(has18 ? has18.id : firstLocal.secoes[0]?.id || '');
-            setSecaoBId(has19 ? has19.id : firstLocal.secoes[1]?.id || firstLocal.secoes[0]?.id || '');
-          }
-        }
-      }
-    }
-
-    loadMunicipioHierarchy();
-  }, [selectedMunicipio, selectedEstado]);
-
-  // 4. Quando muda Zona
-  useEffect(() => {
-    const currentZona = zonas.find((z) => z.id === selectedZona);
-    if (currentZona && currentZona.locais.length > 0) {
-      setLocais(currentZona.locais);
-      const nextLocal = currentZona.locais.find((l) => l.id === selectedLocal) || currentZona.locais[0];
-      setSelectedLocal(nextLocal.id);
-
-      if (nextLocal.secoes.length > 0) {
-        setSecoes(nextLocal.secoes);
-        const has18 = nextLocal.secoes.find((s) => s.id === '0018' || s.numero === '0018');
-        const has19 = nextLocal.secoes.find((s) => s.id === '0019' || s.numero === '0019');
-
-        if (has18 && has19 && selectedZona === '0402') {
-          setSecaoAId(has18.id);
-          setSecaoBId(has19.id);
-        } else {
-          setSecaoAId(nextLocal.secoes[0]?.id || '');
-          setSecaoBId(nextLocal.secoes[1]?.id || nextLocal.secoes[0]?.id || '');
-        }
-      }
-    }
-  }, [selectedZona, zonas]);
-
-  // 5. Carregar dados comparativos das Seções A e B
-  useEffect(() => {
-    if (!secaoAId || !secaoBId || !selectedMunicipio) {
-      setSecaoAData(null);
-      setSecaoBData(null);
-      return;
-    }
-
+    let isMounted = true;
     async function loadComparativo() {
       setLoading(true);
       try {
         const [dataA, dataB] = await Promise.all([
           ElectionService.getSecaoDetails(
-            selectedEstado,
-            selectedMunicipio,
-            selectedZona,
-            selectedLocal,
-            secaoAId,
+            secaoA.uf,
+            secaoA.municipio,
+            secaoA.zona,
+            secaoA.local,
+            secaoA.secao,
             selectedAno
           ),
           ElectionService.getSecaoDetails(
-            selectedEstado,
-            selectedMunicipio,
-            selectedZona,
-            selectedLocal,
-            secaoBId,
+            secaoB.uf,
+            secaoB.municipio,
+            secaoB.zona,
+            secaoB.local,
+            secaoB.secao,
             selectedAno
           )
         ]);
-        setSecaoAData(dataA);
-        setSecaoBData(dataB);
+
+        if (isMounted) {
+          setSecaoAData(dataA);
+          setSecaoBData(dataB);
+        }
       } catch (err) {
         console.error('Erro ao carregar comparativo:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
 
     loadComparativo();
-  }, [selectedEstado, selectedMunicipio, selectedZona, selectedLocal, secaoAId, secaoBId, selectedAno]);
+    return () => {
+      isMounted = false;
+    };
+  }, [secaoA, secaoB, selectedAno]);
 
-  // Exemplo rápido: Presidente Prudente / Zona 402 / Seções 0018 vs 0019 (2026)
-  const aplicarExemploPrudente2026 = () => {
+  // Atalho 1: Porto Alegre (RS) vs Manaus (AM)
+  const aplicarPresetPoaVsManaus = () => {
     setSelectedAno(2026);
-    setSelectedEstado('SP');
-    setSelectedMunicipio('69299');
-    setSelectedZona('0402');
-    setSecaoAId('0018');
-    setSecaoBId('0019');
     setTurnoSelecionado(1);
+    setSecaoA({
+      uf: 'RS',
+      municipio: '88013',
+      zona: '0001',
+      local: '',
+      secao: '0001'
+    });
+    setSecaoB({
+      uf: 'AM',
+      municipio: '02550',
+      zona: '0001',
+      local: '',
+      secao: '0001'
+    });
   };
 
-  const currentMuniInfo = municipios.find((m) => m.codigoTse === selectedMunicipio);
-  const currentZonaInfo = zonas.find((z) => z.id === selectedZona);
+  // Atalho 2: Presidente Prudente (SP) - Seções 0018 x 0019 (mesma zona)
+  const aplicarPresetPrudente = () => {
+    setSelectedAno(2026);
+    setTurnoSelecionado(1);
+    setSecaoA({
+      uf: 'SP',
+      municipio: '69299',
+      zona: '0402',
+      local: '1015',
+      secao: '0018'
+    });
+    setSecaoB({
+      uf: 'SP',
+      municipio: '69299',
+      zona: '0402',
+      local: '1015',
+      secao: '0019'
+    });
+  };
+
+  // Copiar localização de A para B (para testar seções próximas rapidamente)
+  const copiarAparaB = () => {
+    setSecaoB({
+      ...secaoA
+    });
+  };
 
   const turnoA: TurnoResult | undefined =
     turnoSelecionado === 1 ? secaoAData?.primeiroTurno : secaoAData?.segundoTurno;
@@ -188,7 +143,10 @@ export function ComparativoPage({ onVoltarParaConsulta }: ComparativoPageProps) 
     turnoSelecionado === 1 ? secaoBData?.primeiroTurno : secaoBData?.segundoTurno;
 
   // Unificação dos candidatos para a tabela comparativa
-  const candidatosMap = new Map<string, { candidato: CandidateVote; votosA: number; pctA: number; votosB: number; pctB: number }>();
+  const candidatosMap = new Map<
+    string,
+    { candidato: CandidateVote; votosA: number; pctA: number; votosB: number; pctB: number }
+  >();
 
   if (turnoA?.candidatos) {
     for (const c of turnoA.candidatos) {
@@ -231,17 +189,25 @@ export function ComparativoPage({ onVoltarParaConsulta }: ComparativoPageProps) 
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-amber-500 animate-pulse"></span>
           <span className="text-sm font-bold text-slate-800">
-            Comparativo Oficial entre Seções Eleitorais (Urna A vs Urna B)
+            Comparativo Nacional e Interestadual entre Seções Eleitorais
           </span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
-            onClick={aplicarExemploPrudente2026}
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 transition-colors cursor-pointer flex items-center gap-1.5"
-            title="Carregar Seção 0018 vs Seção 0019 (2026 - Presidente Prudente / Zona 402)"
+            onClick={aplicarPresetPoaVsManaus}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-300 transition-colors cursor-pointer flex items-center gap-1.5"
+            title="Confrontar Seção em Porto Alegre (RS) vs Manaus (AM)"
           >
-            <span>⚡ Exemplo Real: Seção 0018 x 0019 (Pres. Prudente / 2026)</span>
+            <span>🌎 Porto Alegre (RS) x Manaus (AM)</span>
+          </button>
+          <button
+            type="button"
+            onClick={aplicarPresetPrudente}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 transition-colors cursor-pointer flex items-center gap-1.5"
+            title="Carregar Seção 0018 vs Seção 0019 (Presidente Prudente / SP)"
+          >
+            <span>⚡ Prudente: 0018 x 0019</span>
           </button>
           {onVoltarParaConsulta && (
             <button
@@ -255,173 +221,92 @@ export function ComparativoPage({ onVoltarParaConsulta }: ComparativoPageProps) 
         </div>
       </div>
 
-      {/* Painel de Filtros e Seleção */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-5">
-        <div className="border-b border-slate-200 pb-3 mb-4">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-2">
-            <span>⚙️ Configuração do Comparativo</span>
-          </h2>
-          <p className="text-xs text-slate-500">
-            Selecione a eleição, localidade e as duas seções eleitorais que deseja confrontar
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-          {/* Ano */}
+      {/* Painel de Filtros e Seleção com Painéis de Urnas Independentes */}
+      <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-3">
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Ano da Eleição</label>
-            <select
-              value={selectedAno}
-              onChange={(e) => setSelectedAno(Number(e.target.value))}
-              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {ANOS_ELEICAO.map((a) => (
-                <option key={a.ano} value={a.ano}>
-                  {a.ano} ({a.tipo})
-                </option>
-              ))}
-            </select>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-2">
+              <span>⚙️ Configuração do Comparativo</span>
+            </h2>
+            <p className="text-xs text-slate-500">
+              Escolha livremente o estado, município, zona e seção de cada urna para comparar
+            </p>
           </div>
 
-          {/* UF */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Estado (TRE)</label>
-            <select
-              value={selectedEstado}
-              onChange={(e) => setSelectedEstado(e.target.value)}
-              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {estados.map((uf) => (
-                <option key={uf.sigla} value={uf.sigla}>
-                  {uf.sigla} - {uf.nome}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Município */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Município</label>
-            <select
-              value={selectedMunicipio}
-              onChange={(e) => setSelectedMunicipio(e.target.value)}
-              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {municipios.map((m) => (
-                <option key={m.codigoTse} value={m.codigoTse}>
-                  {m.nome}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Zona Eleitoral */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Zona Eleitoral</label>
-            <select
-              value={selectedZona}
-              onChange={(e) => setSelectedZona(e.target.value)}
-              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {zonas.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.numero}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Seleção Lado a Lado das Seções */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
-          {/* Seção A */}
-          <div className="bg-white p-3.5 rounded-lg border-2 border-emerald-500/80 shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-                🗳️ Seção A (Referência)
-              </span>
-              <span className="text-[11px] text-slate-500">
-                {secaoAData?.fonte === 'BOLETIM_URNA_INDIVIDUAL' ? '✓ BU Individual' : 'Consolidado'}
-              </span>
+          <div className="flex items-center gap-3">
+            {/* Seletor de Ano */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Ano Eleitoral:</label>
+              <select
+                value={selectedAno}
+                onChange={(e) => setSelectedAno(Number(e.target.value))}
+                className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                {ANOS_ELEICAO.map((a) => (
+                  <option key={a.ano} value={a.ano}>
+                    {a.ano} ({a.tipo})
+                  </option>
+                ))}
+              </select>
             </div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Seção / Urna A</label>
-            <select
-              value={secaoAId}
-              onChange={(e) => setSecaoAId(e.target.value)}
-              className="w-full text-sm font-bold bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {secoes.map((s) => (
-                <option key={`a-${s.id}`} value={s.id}>
-                  Seção {s.numero} {s.urnaEletronica ? `(${s.urnaEletronica})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
 
-          {/* Seção B */}
-          <div className="bg-white p-3.5 rounded-lg border-2 border-amber-500/80 shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
-                🗳️ Seção B (Comparada)
-              </span>
-              <span className="text-[11px] text-slate-500">
-                {secaoBData?.fonte === 'BOLETIM_URNA_INDIVIDUAL' ? '✓ BU Individual' : 'Consolidado'}
-              </span>
+            {/* Alternância de Turno */}
+            <div className="inline-flex rounded-lg border border-slate-300 p-0.5 bg-slate-100">
+              <button
+                type="button"
+                onClick={() => setTurnoSelecionado(1)}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition-colors cursor-pointer ${
+                  turnoSelecionado === 1
+                    ? 'bg-emerald-700 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                1º Turno
+              </button>
+              <button
+                type="button"
+                onClick={() => setTurnoSelecionado(2)}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition-colors cursor-pointer ${
+                  turnoSelecionado === 2
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                2º Turno
+              </button>
             </div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Seção / Urna B</label>
-            <select
-              value={secaoBId}
-              onChange={(e) => setSecaoBId(e.target.value)}
-              className="w-full text-sm font-bold bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            >
-              {secoes.map((s) => (
-                <option key={`b-${s.id}`} value={s.id}>
-                  Seção {s.numero} {s.urnaEletronica ? `(${s.urnaEletronica})` : ''}
-                </option>
-              ))}
-            </select>
           </div>
         </div>
 
-        {/* Alternância de Turno */}
-        <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-200">
-          <div className="text-xs text-slate-600">
-            Localidade:{' '}
-            <strong className="text-slate-800">
-              {currentMuniInfo?.nome} / {selectedEstado}
-            </strong>{' '}
-            • {currentZonaInfo?.numero}
-            {locais.length > 0 && selectedLocal && (
-              <span className="text-slate-500 block sm:inline sm:ml-1">
-                • {locais.find((l) => l.id === selectedLocal)?.nome || 'Polo de Votação'}
-              </span>
-            )}
-          </div>
+        {/* Grade com Seletores Lado a Lado (Urna A e Urna B) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Seletor Urna A */}
+          <SecaoSelector
+            label="Urna A (Referência)"
+            badge="🗳️ Seção A"
+            badgeColorClass="bg-emerald-100 text-emerald-800 border border-emerald-300"
+            borderColorClass="border-emerald-500/80"
+            ringFocusClass="focus:ring-emerald-500"
+            estados={estados}
+            value={secaoA}
+            onChange={setSecaoA}
+            fonteInfo={secaoAData?.fonte === 'BOLETIM_URNA_INDIVIDUAL' ? '✓ BU Oficial' : 'Consolidado'}
+          />
 
-          <div className="inline-flex rounded-lg border border-slate-300 p-0.5 bg-slate-100">
-            <button
-              type="button"
-              onClick={() => setTurnoSelecionado(1)}
-              className={`px-3 py-1 text-xs font-bold rounded-md transition-colors cursor-pointer ${
-                turnoSelecionado === 1
-                  ? 'bg-emerald-700 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              1º Turno
-            </button>
-            <button
-              type="button"
-              onClick={() => setTurnoSelecionado(2)}
-              className={`px-3 py-1 text-xs font-bold rounded-md transition-colors cursor-pointer ${
-                turnoSelecionado === 2
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              2º Turno
-            </button>
-          </div>
+          {/* Seletor Urna B */}
+          <SecaoSelector
+            label="Urna B (Comparada)"
+            badge="🗳️ Seção B"
+            badgeColorClass="bg-amber-100 text-amber-800 border border-amber-300"
+            borderColorClass="border-amber-500/80"
+            ringFocusClass="focus:ring-amber-500"
+            estados={estados}
+            value={secaoB}
+            onChange={setSecaoB}
+            fonteInfo={secaoBData?.fonte === 'BOLETIM_URNA_INDIVIDUAL' ? '✓ BU Oficial' : 'Consolidado'}
+            onCopyFromOther={copiarAparaB}
+            copyButtonLabel="Copiar Local de A"
+          />
         </div>
       </div>
 
@@ -559,16 +444,16 @@ export function ComparativoPage({ onVoltarParaConsulta }: ComparativoPageProps) 
                   </span>
                 </h3>
                 <p className="text-xs text-slate-300 mt-0.5">
-                  Comparação direta entre Seção {secaoAId} e Seção {secaoBId}
+                  Comparação direta: <strong className="text-emerald-400">{secaoAData?.nomeMunicipio || secaoA.uf} (Seção {secaoA.secao})</strong> vs <strong className="text-amber-400">{secaoBData?.nomeMunicipio || secaoB.uf} (Seção {secaoB.secao})</strong>
                 </p>
               </div>
 
               <div className="flex items-center gap-3 text-xs">
                 <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Seção {secaoAId}
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> {secaoAData?.nomeMunicipio || secaoA.uf} ({secaoA.secao})
                 </span>
                 <span className="inline-flex items-center gap-1 text-amber-400 font-semibold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Seção {secaoBId}
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span> {secaoBData?.nomeMunicipio || secaoB.uf} ({secaoB.secao})
                 </span>
               </div>
             </div>
@@ -579,13 +464,13 @@ export function ComparativoPage({ onVoltarParaConsulta }: ComparativoPageProps) 
                   <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                     <th className="py-3 px-4">Candidato / Legenda</th>
                     <th className="py-3 px-4 text-right bg-emerald-50/70 border-l border-emerald-200 text-emerald-950">
-                      Votos (Seção {secaoAId})
+                      Votos ({secaoAData?.nomeMunicipio || secaoA.uf} - {secaoA.secao})
                     </th>
-                    <th className="py-3 px-4 text-right bg-emerald-50/70 text-emerald-950">% Seção {secaoAId}</th>
+                    <th className="py-3 px-4 text-right bg-emerald-50/70 text-emerald-950">% Urna A</th>
                     <th className="py-3 px-4 text-right bg-amber-50/70 border-l border-amber-200 text-amber-950">
-                      Votos (Seção {secaoBId})
+                      Votos ({secaoBData?.nomeMunicipio || secaoB.uf} - {secaoB.secao})
                     </th>
-                    <th className="py-3 px-4 text-right bg-amber-50/70 text-amber-950">% Seção {secaoBId}</th>
+                    <th className="py-3 px-4 text-right bg-amber-50/70 text-amber-950">% Urna B</th>
                     <th className="py-3 px-4 text-right border-l border-slate-300 font-black">
                       Diferença (A - B)
                     </th>
@@ -660,11 +545,11 @@ export function ComparativoPage({ onVoltarParaConsulta }: ComparativoPageProps) 
                         <td className="py-3.5 px-4 text-center">
                           {diffVotos > 0 ? (
                             <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-                              + Seção {secaoAId}
+                              + Urna A ({secaoAData?.nomeMunicipio || secaoA.uf})
                             </span>
                           ) : diffVotos < 0 ? (
                             <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
-                              + Seção {secaoBId}
+                              + Urna B ({secaoBData?.nomeMunicipio || secaoB.uf})
                             </span>
                           ) : (
                             <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">
@@ -685,10 +570,10 @@ export function ComparativoPage({ onVoltarParaConsulta }: ComparativoPageProps) 
                 <span className="font-bold text-slate-800 block mb-1">⚪ Votos em Branco</span>
                 <div className="flex justify-between items-center text-xs">
                   <span>
-                    Seção {secaoAId}: <strong>{turnoA.votosBrancos}</strong>
+                    {secaoAData?.nomeMunicipio || secaoA.uf} ({secaoA.secao}): <strong>{turnoA.votosBrancos}</strong>
                   </span>
                   <span>
-                    Seção {secaoBId}: <strong>{turnoB.votosBrancos}</strong>
+                    {secaoBData?.nomeMunicipio || secaoB.uf} ({secaoB.secao}): <strong>{turnoB.votosBrancos}</strong>
                   </span>
                   <span className="font-bold text-slate-700">
                     Dif: {turnoA.votosBrancos - turnoB.votosBrancos}
@@ -700,10 +585,10 @@ export function ComparativoPage({ onVoltarParaConsulta }: ComparativoPageProps) 
                 <span className="font-bold text-slate-800 block mb-1">❌ Votos Nulos</span>
                 <div className="flex justify-between items-center text-xs">
                   <span>
-                    Seção {secaoAId}: <strong>{turnoA.votosNulos}</strong>
+                    {secaoAData?.nomeMunicipio || secaoA.uf} ({secaoA.secao}): <strong>{turnoA.votosNulos}</strong>
                   </span>
                   <span>
-                    Seção {secaoBId}: <strong>{turnoB.votosNulos}</strong>
+                    {secaoBData?.nomeMunicipio || secaoB.uf} ({secaoB.secao}): <strong>{turnoB.votosNulos}</strong>
                   </span>
                   <span className="font-bold text-slate-700">
                     Dif: {turnoA.votosNulos - turnoB.votosNulos}
@@ -716,7 +601,7 @@ export function ComparativoPage({ onVoltarParaConsulta }: ComparativoPageProps) 
       ) : (
         <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-12 text-center text-slate-500">
           <p className="text-base font-semibold text-slate-700">
-            Nenhum dado retornado para o turno selecionado nas seções {secaoAId} e {secaoBId}.
+            Nenhum dado retornado para o turno selecionado entre as seções escolhidas.
           </p>
           <p className="text-xs text-slate-500 mt-1">
             Verifique se ambas as seções estão cadastradas e possuem apuração apurada para o ano {selectedAno}.

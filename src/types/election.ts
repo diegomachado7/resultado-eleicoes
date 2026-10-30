@@ -25,6 +25,8 @@ export interface SecaoData {
   id: string; // Ex: '0015'
   numero: string;
   urnaEletronica: string;
+  nomeMunicipio?: string;
+  uf?: string;
   fonte?: 'BOLETIM_URNA_INDIVIDUAL' | 'CONSOLIDADO_MUNICIPAL';
   anoEleicao?: number;
   primeiroTurno: TurnoResult;
