@@ -30,3 +30,8 @@
 
 ## Layout
 - Tons de verde e amarelo
+
+## Páginas
+- Home com menu
+-- Consulta Simples
+-- Comparativo entre Seções
