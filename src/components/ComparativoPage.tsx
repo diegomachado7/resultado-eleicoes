@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ElectionService, ANOS_ELEICAO } from '../services/electionService';
 import { SecaoData, CandidateVote, TurnoResult } from '../types/election';
 import { SecaoSelector, SecaoSelectorValue } from './SecaoSelector';
+import { ComparativoAnalytics } from './ComparativoAnalytics';
 
 interface ComparativoPageProps {
   onVoltarParaConsulta?: () => void;
@@ -509,6 +510,15 @@ export function ComparativoPage({ onVoltarParaConsulta }: ComparativoPageProps) 
               </div>
             </div>
           </div>
+
+          {/* Gráficos e Analytics Visuais Comparativos (Recharts) */}
+          <ComparativoAnalytics
+            turnoA={turnoA}
+            turnoB={turnoB}
+            nomeA={`${secaoAData?.nomeMunicipio || secaoA.uf} (${secaoA.secao})`}
+            nomeB={`${secaoBData?.nomeMunicipio || secaoB.uf} (${secaoB.secao})`}
+            candidatosComparados={candidatosComparados}
+          />
 
           {/* Tabela Comparativa de Candidatos */}
           <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">

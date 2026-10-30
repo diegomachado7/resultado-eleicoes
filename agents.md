@@ -35,3 +35,10 @@
 - Home com menu
 -- Consulta Simples
 -- Comparativo entre Seções
+
+## A melhor estratégia: Abordagem Modular (Passo a Passo)
+Dividir em etapas independentes gasta muito menos tokens e garante commits limpos após cada funcionalidade (seguindo a regra do seu projeto):
+Etapa 1: Gráficos e Analytics Visuais (ex: Recharts/Chart.js na Consulta e no Comparativo).
+Etapa 2: Exportação e Relatórios (CSV / Impressão e PDF do Boletim).
+Etapa 3: Sincronizador TSE sob Demanda via UI (botão na tela para puxar dados sem precisar rodar comando manual).
+Etapa 4: Mapa Interativo de Locais (Leaflet com marcadores dos colégios).

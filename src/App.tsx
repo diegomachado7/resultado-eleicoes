@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FilterSelector } from './components/FilterSelector';
 import { TurnoCard } from './components/TurnoCard';
+import { TurnoAnalytics } from './components/TurnoAnalytics';
 import { ComparativoPage } from './components/ComparativoPage';
 import { ElectionService, ANOS_ELEICAO, SqliteStats } from './services/electionService';
 import { Municipio, ZonaEleitoral, LocalVotacao, SecaoData } from './types/election';
@@ -408,6 +409,14 @@ export function App() {
                     </div>
                   )}
                 </div>
+
+                {/* Analytics Visual com Recharts */}
+                <TurnoAnalytics
+                  turno1={activeSecaoData.primeiroTurno}
+                  turno2={activeSecaoData.segundoTurno}
+                  secaoNumero={activeSecaoData.numero}
+                  municipioNome={currentMuniInfo?.nome}
+                />
               </div>
             ) : (
               <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-12 text-center text-slate-500">
