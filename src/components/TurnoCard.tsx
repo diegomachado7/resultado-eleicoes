@@ -41,6 +41,11 @@ export const TurnoCard: React.FC<TurnoCardProps> = ({
               <span className={`text-xs uppercase font-bold tracking-wider px-2.5 py-0.5 rounded border ${badgeColor}`}>
                 {titulo}
               </span>
+              {data.cargo && (
+                <span className="text-xs bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded border border-emerald-200">
+                  {data.cargo}
+                </span>
+              )}
               {(dataEleicao || data.dataEleicao) && (
                 <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium border border-slate-200">
                   📅 {dataEleicao || data.dataEleicao}

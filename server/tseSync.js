@@ -166,31 +166,35 @@ export async function getOuSincronizaApuracao(uf, codigoMunicipio, ano = 2024) {
   let resultado1T = null;
   let resultado2T = null;
 
-  try {
-    // Busca do TSE conforme o ano
-    const eleicao1TId = ano === 2024 ? '619' : ano === 2022 ? '544' : '619';
-    const cargoId = ano === 2022 || ano === 2026 ? '0001' : '0011'; // 0001: Presidente, 0011: Prefeito
-    const cargoNome = ano === 2022 || ano === 2026 ? 'Presidente' : 'Prefeito';
+  // Mapeamento oficial dos ciclos e códigos de eleição no TSE
+  // 2026: Ordinária Federal / Estadual (Presidente: e006257 / e006258)
+  // 2024: Ordinária Municipal (Prefeito: e000619 / e000620)
+  const is2026 = ano === 2026;
+  const eleicao1TId = is2026 ? '6257' : '619';
+  const eleicao2TId = is2026 ? '6258' : '620';
+  const cargoId = is2026 ? '0001' : '0011'; // 0001: Presidente, 0011: Prefeito
+  const cargoNome = is2026 ? 'Presidente' : 'Prefeito';
 
-    const url1T = `${TSE_BASE}/ele${ano}/${eleicao1TId}/dados/${ufLower}/${ufLower}${codigoMunicipio}-c${cargoId}-e000${eleicao1TId}-u.json`;
+  const eleicao1TPadded = eleicao1TId.padStart(6, '0');
+  const eleicao2TPadded = eleicao2TId.padStart(6, '0');
+
+  try {
+    const url1T = `${TSE_BASE}/ele${ano}/${eleicao1TId}/dados/${ufLower}/${ufLower}${codigoMunicipio}-c${cargoId}-e${eleicao1TPadded}-u.json`;
     const data1T = await fetchTSE(url1T);
-    resultado1T = parseTseResult(data1T, 1);
+    resultado1T = parseTseResult(data1T, 1, cargoNome);
     salvarResultadoDb(codigoMunicipio, ufUpper, ano, 1, cargoNome, resultado1T);
   } catch (err) {
     console.warn(`[TSE Sync] Não foi possível carregar 1º turno (${ano}) para ${codigoMunicipio}: ${err.message}`);
   }
 
   try {
-    const eleicao2TId = ano === 2024 ? '620' : ano === 2022 ? '545' : '620';
-    const cargoId = ano === 2022 || ano === 2026 ? '0001' : '0011';
-    const cargoNome = ano === 2022 || ano === 2026 ? 'Presidente' : 'Prefeito';
-
-    const url2T = `${TSE_BASE}/ele${ano}/${eleicao2TId}/dados/${ufLower}/${ufLower}${codigoMunicipio}-c${cargoId}-e000${eleicao2TId}-u.json`;
+    const url2T = `${TSE_BASE}/ele${ano}/${eleicao2TId}/dados/${ufLower}/${ufLower}${codigoMunicipio}-c${cargoId}-e${eleicao2TPadded}-u.json`;
     const data2T = await fetchTSE(url2T);
-    resultado2T = parseTseResult(data2T, 2);
+    resultado2T = parseTseResult(data2T, 2, cargoNome);
     salvarResultadoDb(codigoMunicipio, ufUpper, ano, 2, cargoNome, resultado2T);
-  } catch {
-    // É perfeitamente normal cidades sem 2º turno não terem arquivo
+  } catch (err) {
+    // Cidades ou eleições sem 2º turno não possuem arquivo de 2º turno
+    console.log(`[TSE Sync] 2º turno não aplicável ou não disponível para ${codigoMunicipio} (${ano})`);
   }
 
   return {
@@ -199,10 +203,11 @@ export async function getOuSincronizaApuracao(uf, codigoMunicipio, ano = 2024) {
   };
 }
 
-function parseTseResult(data, turno) {
+function parseTseResult(data, turno, defaultCargoNome) {
   const eleitores = data.e || {};
   const votos = data.v || {};
   const carg = data.carg?.[0] || {};
+  const cargo = carg.nmn || carg.nmm || defaultCargoNome || 'Votação';
 
   const candidatos = [];
   if (Array.isArray(carg.agr)) {
@@ -213,7 +218,7 @@ function parseTseResult(data, turno) {
             for (const c of p.cand) {
               candidatos.push({
                 numero: String(c.n || ''),
-                nome: c.nm || '',
+                nome: c.nmu || c.nm || '',
                 partido: p.nm || p.sg || '',
                 siglaPartido: p.sg || '',
                 votos: parseTseNumber(c.vap || c.v),
@@ -231,6 +236,7 @@ function parseTseResult(data, turno) {
 
   return {
     turno,
+    cargo,
     eleitoresAptos: parseTseNumber(eleitores.te),
     totalVotosApurados: parseTseNumber(votos.tv),
     votosValidos: parseTseNumber(votos.vv || votos.vvc),
@@ -272,6 +278,7 @@ function salvarResultadoDb(codigoMunicipio, uf, ano, turno, cargo, res) {
 function formatarResultadoDb(row) {
   return {
     turno: row.turno,
+    cargo: row.cargo,
     eleitoresAptos: row.eleitores_aptos,
     totalVotosApurados: row.votos_apurados,
     votosValidos: row.votos_validos,

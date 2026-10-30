@@ -10,6 +10,7 @@ export interface CandidateVote {
 
 export interface TurnoResult {
   turno: 1 | 2;
+  cargo?: string;
   dataEleicao?: string;
   totalVotosApurados: number;
   votosValidos: number;
