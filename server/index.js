@@ -155,11 +155,24 @@ app.get('/api/resultado-secao', async (req, res) => {
       };
     }
 
+    // Busca nome do município para enriquecer retorno
+    let nomeMunicipio = '';
+    try {
+      const muniRow = db.prepare('SELECT nome FROM municipios WHERE codigo_tse = ?').get(codigoMunicipio);
+      if (muniRow) nomeMunicipio = muniRow.nome;
+    } catch (e) {
+      // ignore
+    }
+
     res.json({
       id: secaoId,
       numero: secaoId,
+      uf,
+      nomeMunicipio,
       fonte: apuracao.fonte || 'BOLETIM_URNA_INDIVIDUAL',
       urnaEletronica: apuracao.urnaModelo || `Urna Eletrônica Oficial TSE - Seção ${secaoId} (Zona ${parseInt(zonaId, 10) || zonaId})`,
+      dataHoraEncerramento: apuracao.dataHoraEncerramento || null,
+      dataHoraEmissaoBu: apuracao.dataHoraEmissaoBu || null,
       primeiroTurno: apuracao.turno1,
       segundoTurno: apuracao.turno2
     });

@@ -318,6 +318,83 @@ export function ComparativoPage({ onVoltarParaConsulta }: ComparativoPageProps) 
         </div>
       ) : turnoA && turnoB ? (
         <div className="space-y-6">
+          {/* Cartões de Auditoria Criptográfica das Urnas TSE */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Auditoria Urna A */}
+            <div className="bg-emerald-50/60 rounded-xl border border-emerald-200/80 p-4 relative overflow-hidden shadow-xs">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-black uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+                  Urna A • {secaoAData?.nomeMunicipio || secaoA.uf} (Seção {secaoA.secao})
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-950 border border-emerald-300">
+                  {secaoAData?.fonte === 'BOLETIM_URNA_INDIVIDUAL' ? '✓ BU Oficial TSE' : 'Consolidado'}
+                </span>
+              </div>
+              <div className="space-y-1 text-xs">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-slate-500 font-medium">Equipamento / Modelo:</span>
+                  <span className="font-mono font-bold text-slate-900 text-right truncate max-w-[240px]">
+                    {secaoAData?.urnaEletronica || 'Urna Eletrônica Oficial TSE'}
+                  </span>
+                </div>
+                {secaoAData?.dataHoraEncerramento && (
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-slate-500 font-medium">Encerramento da Votação:</span>
+                    <span className="font-mono font-semibold text-emerald-950">
+                      {secaoAData.dataHoraEncerramento}
+                    </span>
+                  </div>
+                )}
+                {secaoAData?.dataHoraEmissaoBu && (
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-slate-500 font-medium">Impressão do BU:</span>
+                    <span className="font-mono font-semibold text-emerald-950">
+                      {secaoAData.dataHoraEmissaoBu}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Auditoria Urna B */}
+            <div className="bg-amber-50/60 rounded-xl border border-amber-200/80 p-4 relative overflow-hidden shadow-xs">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-black uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse"></span>
+                  Urna B • {secaoBData?.nomeMunicipio || secaoB.uf} (Seção {secaoB.secao})
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200 text-amber-950 border border-amber-300">
+                  {secaoBData?.fonte === 'BOLETIM_URNA_INDIVIDUAL' ? '✓ BU Oficial TSE' : 'Consolidado'}
+                </span>
+              </div>
+              <div className="space-y-1 text-xs">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-slate-500 font-medium">Equipamento / Modelo:</span>
+                  <span className="font-mono font-bold text-slate-900 text-right truncate max-w-[240px]">
+                    {secaoBData?.urnaEletronica || 'Urna Eletrônica Oficial TSE'}
+                  </span>
+                </div>
+                {secaoBData?.dataHoraEncerramento && (
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-slate-500 font-medium">Encerramento da Votação:</span>
+                    <span className="font-mono font-semibold text-amber-950">
+                      {secaoBData.dataHoraEncerramento}
+                    </span>
+                  </div>
+                )}
+                {secaoBData?.dataHoraEmissaoBu && (
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-slate-500 font-medium">Impressão do BU:</span>
+                    <span className="font-mono font-semibold text-amber-950">
+                      {secaoBData.dataHoraEmissaoBu}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Cartões Comparativos de Métricas Chave */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {/* Eleitores Aptos */}

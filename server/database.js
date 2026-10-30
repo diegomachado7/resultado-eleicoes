@@ -96,6 +96,8 @@ export function initDatabase() {
       votos_nulos INTEGER,
       candidatos_json TEXT,
       fonte TEXT DEFAULT 'BOLETIM_URNA',
+      data_hora_encerramento TEXT,
+      data_hora_emissao_bu TEXT,
       atualizado_em TEXT,
       PRIMARY KEY (codigo_municipio, uf, ano, turno, zona_id, secao_id, cargo)
     );

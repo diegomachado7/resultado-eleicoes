@@ -125,6 +125,18 @@ async function getCandidatosMetadata(uf, codigoMunicipio, ano, turno) {
   }
 }
 
+function formatTseIsoDate(s) {
+  if (!s || s.length < 15) return null;
+  // 20261025T170459 -> 25/10/2026 às 17:04:59
+  const Y = s.slice(0, 4);
+  const M = s.slice(4, 6);
+  const D = s.slice(6, 8);
+  const h = s.slice(9, 11);
+  const m = s.slice(11, 13);
+  const sec = s.slice(13, 15);
+  return `${D}/${M}/${Y} às ${h}:${m}:${sec}`;
+}
+
 /**
  * Baixa e decodifica o Boletim de Urna (BU) oficial de uma seção específica
  */
@@ -150,7 +162,9 @@ export async function getOuSincronizaApuracaoSecao(uf, codigoMunicipio, zonaId, 
       turno1: formatarResultadoDb(cached1T),
       turno2: cached2T ? formatarResultadoDb(cached2T) : null,
       fonte: 'BOLETIM_URNA_INDIVIDUAL',
-      urnaModelo: cached1T.fonte || 'Urna Oficial TSE'
+      urnaModelo: cached1T.fonte || 'Urna Oficial TSE',
+      dataHoraEncerramento: cached1T.data_hora_encerramento,
+      dataHoraEmissaoBu: cached1T.data_hora_emissao_bu
     };
   }
 
@@ -173,6 +187,8 @@ export async function getOuSincronizaApuracaoSecao(uf, codigoMunicipio, zonaId, 
   let resultado1T = null;
   let resultado2T = null;
   let urnaModeloDesc = null;
+  let dataHoraEncerramento = null;
+  let dataHoraEmissaoBu = null;
 
   // Processa 1º Turno
   try {
@@ -194,7 +210,21 @@ export async function getOuSincronizaApuracaoSecao(uf, codigoMunicipio, zonaId, 
     if (parsed1T) {
       resultado1T = parsed1T.resultado;
       urnaModeloDesc = parsed1T.urnaModelo;
-      salvarResultadoSecaoDb(codigoMunicipio, ufUpper, ano, 1, zonaNorm, secaoNorm, cargoNome, resultado1T, urnaModeloDesc);
+      dataHoraEncerramento = parsed1T.dataHoraEncerramento;
+      dataHoraEmissaoBu = parsed1T.dataHoraEmissaoBu;
+      salvarResultadoSecaoDb(
+        codigoMunicipio,
+        ufUpper,
+        ano,
+        1,
+        zonaNorm,
+        secaoNorm,
+        cargoNome,
+        resultado1T,
+        urnaModeloDesc,
+        dataHoraEncerramento,
+        dataHoraEmissaoBu
+      );
     }
   } catch (err) {
     console.warn(`[TSE Sync] BU 1º Turno não obtido para Seção ${secaoNorm}: ${err.message}`);
@@ -219,7 +249,20 @@ export async function getOuSincronizaApuracaoSecao(uf, codigoMunicipio, zonaId, 
 
     if (parsed2T) {
       resultado2T = parsed2T.resultado;
-      salvarResultadoSecaoDb(codigoMunicipio, ufUpper, ano, 2, zonaNorm, secaoNorm, cargoNome, resultado2T, urnaModeloDesc);
+      if (!urnaModeloDesc) urnaModeloDesc = parsed2T.urnaModelo;
+      salvarResultadoSecaoDb(
+        codigoMunicipio,
+        ufUpper,
+        ano,
+        2,
+        zonaNorm,
+        secaoNorm,
+        cargoNome,
+        resultado2T,
+        parsed2T.urnaModelo || urnaModeloDesc,
+        parsed2T.dataHoraEncerramento || dataHoraEncerramento,
+        parsed2T.dataHoraEmissaoBu || dataHoraEmissaoBu
+      );
     }
   } catch (err) {
     console.log(`[TSE Sync] BU 2º Turno não aplicável/disponível para Seção ${secaoNorm} (${ano})`);
@@ -230,7 +273,9 @@ export async function getOuSincronizaApuracaoSecao(uf, codigoMunicipio, zonaId, 
       turno1: resultado1T,
       turno2: resultado2T,
       fonte: 'BOLETIM_URNA_INDIVIDUAL',
-      urnaModelo: urnaModeloDesc || 'Urna Oficial TSE'
+      urnaModelo: urnaModeloDesc || 'Urna Oficial TSE',
+      dataHoraEncerramento,
+      dataHoraEmissaoBu
     };
   }
 
@@ -290,6 +335,23 @@ async function baixarEDecodificarBU(
     }
   } catch (e) {
     // modelo fallback
+  }
+
+  // Extrai data e hora de encerramento da votação (Campo 4) e de emissão do BU (Campo 0)
+  let dataHoraEncerramento = null;
+  let dataHoraEmissaoBu = null;
+  try {
+    const rawEnc = buFields[4]?.value?.toString('latin1')?.trim();
+    if (rawEnc) {
+      dataHoraEncerramento = formatTseIsoDate(rawEnc);
+    }
+    const field0Kids = parseChildren(innerBuf, buFields[0].valueOffset, buFields[0].len);
+    const rawEmissao = field0Kids[0]?.value?.toString('latin1')?.trim();
+    if (rawEmissao) {
+      dataHoraEmissaoBu = formatTseIsoDate(rawEmissao);
+    }
+  } catch (e) {
+    // timestamp fallback
   }
 
   // Lista com os resultados por eleição (Campo 8)
@@ -356,6 +418,8 @@ async function baixarEDecodificarBU(
 
             return {
               urnaModelo: urnaModeloDesc,
+              dataHoraEncerramento,
+              dataHoraEmissaoBu,
               resultado: {
                 turno,
                 cargo: cargoNome,
@@ -377,14 +441,26 @@ async function baixarEDecodificarBU(
   return null;
 }
 
-function salvarResultadoSecaoDb(codigoMunicipio, uf, ano, turno, zonaId, secaoId, cargo, res, urnaModelo) {
+function salvarResultadoSecaoDb(
+  codigoMunicipio,
+  uf,
+  ano,
+  turno,
+  zonaId,
+  secaoId,
+  cargo,
+  res,
+  urnaModelo,
+  dataHoraEncerramento,
+  dataHoraEmissaoBu
+) {
   const stmt = db.prepare(`
     INSERT OR REPLACE INTO apuracao_secao (
       codigo_municipio, uf, ano, turno, zona_id, secao_id, cargo,
       eleitores_aptos, comparecimento, abstencoes,
       votos_apurados, votos_validos, votos_brancos, votos_nulos,
-      candidatos_json, fonte, atualizado_em
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      candidatos_json, fonte, data_hora_encerramento, data_hora_emissao_bu, atualizado_em
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   stmt.run(
@@ -404,6 +480,8 @@ function salvarResultadoSecaoDb(codigoMunicipio, uf, ano, turno, zonaId, secaoId
     res.votosNulos,
     JSON.stringify(res.candidatos),
     urnaModelo || 'Urna Oficial TSE',
+    dataHoraEncerramento || null,
+    dataHoraEmissaoBu || null,
     new Date().toISOString()
   );
 }

@@ -29,6 +29,8 @@ export interface SecaoData {
   uf?: string;
   fonte?: 'BOLETIM_URNA_INDIVIDUAL' | 'CONSOLIDADO_MUNICIPAL';
   anoEleicao?: number;
+  dataHoraEncerramento?: string | null;
+  dataHoraEmissaoBu?: string | null;
   primeiroTurno: TurnoResult;
   segundoTurno?: TurnoResult;
 }
