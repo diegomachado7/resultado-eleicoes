@@ -237,8 +237,9 @@ export function App() {
           </div>
 
           {/* Menu de Navegação Superior Oficial */}
-          <nav className="mt-4 pt-3 border-t border-emerald-800/80 flex items-center gap-3">
+          <nav id="nav-menu-principal" className="mt-4 pt-3 border-t border-emerald-800/80 flex items-center gap-3">
             <button
+              id="btn-nav-consulta-simples"
               type="button"
               onClick={() => navigateTo('/')}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
@@ -247,10 +248,11 @@ export function App() {
                   : 'text-emerald-100 hover:bg-emerald-800/80 hover:text-white'
               }`}
             >
-              <span>🗳️ Consulta Simples</span>
+              <span id="label-nav-consulta-simples">🗳️ Consulta Simples</span>
             </button>
 
             <button
+              id="btn-nav-comparativo-secoes"
               type="button"
               onClick={() => navigateTo('/comparativo')}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
@@ -259,10 +261,7 @@ export function App() {
                   : 'text-emerald-100 hover:bg-emerald-800/80 hover:text-white'
               }`}
             >
-              <span>⚖️ Comparativo entre Seções</span>
-              <span className="bg-emerald-950/40 text-[10px] px-1.5 py-0.5 rounded text-amber-300">
-                /comparativo
-              </span>
+              <span id="label-nav-comparativo-secoes">⚖️ Comparativo entre Seções</span>
             </button>
           </nav>
         </div>

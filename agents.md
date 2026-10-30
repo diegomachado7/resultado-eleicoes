@@ -30,6 +30,7 @@
 
 ## Layout
 - Tons de verde e amarelo
+- Para o partido do PT, o tom de cor é vermelho.
 
 ## Páginas
 - Home com menu
@@ -42,3 +43,7 @@ Etapa 1: Gráficos e Analytics Visuais (ex: Recharts/Chart.js na Consulta e no C
 Etapa 2: Exportação e Relatórios (CSV / Impressão e PDF do Boletim).
 Etapa 3: Sincronizador TSE sob Demanda via UI (botão na tela para puxar dados sem precisar rodar comando manual).
 Etapa 4: Mapa Interativo de Locais (Leaflet com marcadores dos colégios).
+
+# Padrões
+- Em todo elemento html, precisa de um id
+-- Exemplo id="padrao-do-id-do-elemento"
