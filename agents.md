@@ -1,7 +1,7 @@
 ## Quando eu te pedir algo, antes de sair fazendo:
 - Analise o código do projeto.
 - Entenda a causa.
-- Me proponha a melhor solução para o problema.
+- Me proponha a melhor solução para o problema seguindo os padrões internacionais.
 
 ## Git
 - No final de cada implementação, pode fazer o commit automático com uma descrição clara do que foi feito.
@@ -13,7 +13,7 @@
 - SQLite (banco local)
 
 ## Estrutura do voto
-- Ano da eleição
+- Ano da eleição: selecionado pelo usuário
 - TSE (Brasil)
 - TRE (Estado)
 - Município
@@ -25,3 +25,6 @@
 
 ## Documentação Oficial
 - https://www.tse.jus.br/eleicoes/informacoes-tecnicas-sobre-a-divulgacao-de-resultados
+
+## Layout
+- Tons de verde e amarelo

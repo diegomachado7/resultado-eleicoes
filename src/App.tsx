@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FilterSelector } from './components/FilterSelector';
 import { TurnoCard } from './components/TurnoCard';
-import { ElectionService } from './services/electionService';
+import { ElectionService, SqliteStats } from './services/electionService';
 import { Municipio, ZonaEleitoral, LocalVotacao, SecaoData } from './types/election';
 
 export function App() {
@@ -9,30 +9,34 @@ export function App() {
   const [selectedEstado, setSelectedEstado] = useState<string>('SP');
 
   const [municipios, setMunicipios] = useState<Municipio[]>([]);
-  const [selectedMunicipio, setSelectedMunicipio] = useState<string>('71072');
+  // Inicia com Presidente Prudente (69299) ou São Paulo (71072)
+  const [selectedMunicipio, setSelectedMunicipio] = useState<string>('69299');
 
   const [zonas, setZonas] = useState<ZonaEleitoral[]>([]);
-  const [selectedZona, setSelectedZona] = useState<string>('0001');
+  const [selectedZona, setSelectedZona] = useState<string>('0101');
 
   const [locais, setLocais] = useState<LocalVotacao[]>([]);
-  const [selectedLocal, setSelectedLocal] = useState<string>('1015');
+  const [selectedLocal, setSelectedLocal] = useState<string>('');
 
   const [secoes, setSecoes] = useState<SecaoData[]>([]);
-  const [selectedSecao, setSelectedSecao] = useState<string>('0001');
+  const [selectedSecao, setSelectedSecao] = useState<string>('');
 
   const [activeSecaoData, setActiveSecaoData] = useState<SecaoData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [dbStats, setDbStats] = useState<SqliteStats | null>(null);
 
-  // Carregar Estados
+  // 1. Carregar Estados e Stats do SQLite
   useEffect(() => {
-    async function loadEstados() {
+    async function loadInitial() {
       const ufs = await ElectionService.getEstados();
       setEstados(ufs);
+      const stats = await ElectionService.getStats();
+      setDbStats(stats);
     }
-    loadEstados();
+    loadInitial();
   }, []);
 
-  // Quando muda Estado
+  // 2. Quando muda Estado -> Carrega Lista de Municípios
   useEffect(() => {
     if (!selectedEstado) {
       setMunicipios([]);
@@ -43,67 +47,129 @@ export function App() {
       setLoading(true);
       const munis = await ElectionService.getMunicipios(selectedEstado);
       setMunicipios(munis);
+
       if (munis.length > 0) {
-        // Se o município atual pertencer ao estado mantém, senão seleciona o primeiro
+        // Se Presidente Prudente ou o selecionado existir na lista, mantém
         const exists = munis.find((m) => m.codigoTse === selectedMunicipio);
-        const novoMuni = exists ? selectedMunicipio : munis[0].codigoTse;
+        const novoMuni = exists
+          ? selectedMunicipio
+          : munis.find((m) => m.codigoTse === '69299')?.codigoTse || munis[0].codigoTse;
         setSelectedMunicipio(novoMuni);
       } else {
         setSelectedMunicipio('');
       }
       setLoading(false);
+
+      // Atualiza stats
+      const stats = await ElectionService.getStats();
+      setDbStats(stats);
     }
     loadMunicipios();
   }, [selectedEstado]);
 
-  // Quando muda Município
+  // 3. Quando muda Município -> Carrega Zonas, Locais e Seções detalhadas daquele Município
   useEffect(() => {
-    const currentMuni = municipios.find((m) => m.codigoTse === selectedMunicipio);
-    if (currentMuni && currentMuni.zonas.length > 0) {
-      setZonas(currentMuni.zonas);
-      const exists = currentMuni.zonas.find((z) => z.id === selectedZona);
-      setSelectedZona(exists ? selectedZona : currentMuni.zonas[0].id);
-    } else {
+    if (!selectedMunicipio) {
       setZonas([]);
       setSelectedZona('');
+      setLocais([]);
+      setSelectedLocal('');
+      setSecoes([]);
+      setSelectedSecao('');
+      return;
     }
-  }, [selectedMunicipio, municipios]);
 
-  // Quando muda Zona
+    async function loadMunicipioHierarchy() {
+      setLoading(true);
+      const details = await ElectionService.getMunicipioDetails(selectedEstado, selectedMunicipio);
+      if (details && Array.isArray(details.zonas) && details.zonas.length > 0) {
+        setZonas(details.zonas);
+        const firstZona = details.zonas.find((z) => z.id === selectedZona) || details.zonas[0];
+        setSelectedZona(firstZona.id);
+
+        if (firstZona.locais && firstZona.locais.length > 0) {
+          setLocais(firstZona.locais);
+          const firstLocal = firstZona.locais[0];
+          setSelectedLocal(firstLocal.id);
+
+          if (firstLocal.secoes && firstLocal.secoes.length > 0) {
+            setSecoes(firstLocal.secoes);
+            setSelectedSecao(firstLocal.secoes[0].id);
+          } else {
+            setSecoes([]);
+            setSelectedSecao('');
+          }
+        } else {
+          setLocais([]);
+          setSelectedLocal('');
+        }
+      } else {
+        setZonas([]);
+        setSelectedZona('');
+      }
+      setLoading(false);
+    }
+
+    loadMunicipioHierarchy();
+  }, [selectedMunicipio, selectedEstado]);
+
+  // 4. Quando muda Zona
   useEffect(() => {
     const currentZona = zonas.find((z) => z.id === selectedZona);
     if (currentZona && currentZona.locais.length > 0) {
       setLocais(currentZona.locais);
-      const exists = currentZona.locais.find((l) => l.id === selectedLocal);
-      setSelectedLocal(exists ? selectedLocal : currentZona.locais[0].id);
+      const nextLocal = currentZona.locais.find((l) => l.id === selectedLocal) || currentZona.locais[0];
+      setSelectedLocal(nextLocal.id);
+
+      if (nextLocal.secoes.length > 0) {
+        setSecoes(nextLocal.secoes);
+        const nextSecao = nextLocal.secoes.find((s) => s.id === selectedSecao) || nextLocal.secoes[0];
+        setSelectedSecao(nextSecao.id);
+      } else {
+        setSecoes([]);
+        setSelectedSecao('');
+      }
     } else {
       setLocais([]);
       setSelectedLocal('');
     }
   }, [selectedZona, zonas]);
 
-  // Quando muda Local
+  // 5. Quando muda Local
   useEffect(() => {
     const currentLocal = locais.find((l) => l.id === selectedLocal);
     if (currentLocal && currentLocal.secoes.length > 0) {
       setSecoes(currentLocal.secoes);
-      const exists = currentLocal.secoes.find((s) => s.id === selectedSecao);
-      setSelectedSecao(exists ? selectedSecao : currentLocal.secoes[0].id);
+      const nextSecao = currentLocal.secoes.find((s) => s.id === selectedSecao) || currentLocal.secoes[0];
+      setSelectedSecao(nextSecao.id);
     } else {
       setSecoes([]);
       setSelectedSecao('');
     }
   }, [selectedLocal, locais]);
 
-  // Quando muda a Seção Selecionada
+  // 6. Quando muda Seção -> Carrega resultado detalhado da apuração
   useEffect(() => {
-    if (!selectedSecao) {
+    if (!selectedSecao || !selectedMunicipio) {
       setActiveSecaoData(null);
       return;
     }
-    const currentSecao = secoes.find((s) => s.id === selectedSecao);
-    setActiveSecaoData(currentSecao || null);
-  }, [selectedSecao, secoes]);
+
+    async function loadSecaoVotacao() {
+      setLoading(true);
+      const data = await ElectionService.getSecaoDetails(
+        selectedEstado,
+        selectedMunicipio,
+        selectedZona,
+        selectedLocal,
+        selectedSecao
+      );
+      setActiveSecaoData(data);
+      setLoading(false);
+    }
+
+    loadSecaoVotacao();
+  }, [selectedSecao, selectedMunicipio, selectedZona, selectedLocal, selectedEstado]);
 
   const currentLocalInfo = locais.find((l) => l.id === selectedLocal);
   const currentMuniInfo = municipios.find((m) => m.codigoTse === selectedMunicipio);
@@ -120,18 +186,24 @@ export function App() {
                 TSE • Justiça Eleitoral
               </div>
               <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                Divulgação de Resultados • Eleições 2026
+                Divulgação de Resultados • Dados Oficiais do TSE
               </h1>
               <p className="text-xs text-slate-400">
-                Consulta granular de Boletim de Urna (BU) por Estado, Município, Zona, Local e Seção
+                Consulta granular de Boletim de Urna (BU) e apuração com persistência em SQLite Local
               </p>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="bg-slate-800 px-3.5 py-2 rounded-lg border border-slate-700 text-right">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">Pleito</span>
-                <span className="text-sm font-bold text-slate-200">Presidente da República</span>
-              </div>
+              {dbStats && (
+                <div className="bg-slate-800 px-3.5 py-2 rounded-lg border border-slate-700 text-right">
+                  <span className="text-[10px] text-emerald-400 uppercase tracking-wider block font-semibold">
+                    ● SQLite Conectado
+                  </span>
+                  <span className="text-xs font-semibold text-slate-200">
+                    {dbStats.municipios} cidades • {dbStats.secoes.toLocaleString('pt-BR')} seções
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -183,7 +255,9 @@ export function App() {
                 <div className="h-6 w-px bg-slate-200"></div>
                 <div>
                   <span className="text-slate-400 block font-medium">Eleitores Aptos</span>
-                  <span className="font-semibold text-slate-800">{activeSecaoData.primeiroTurno.eleitoresAptos}</span>
+                  <span className="font-semibold text-slate-800">
+                    {activeSecaoData.primeiroTurno?.eleitoresAptos?.toLocaleString('pt-BR') || 0}
+                  </span>
                 </div>
               </div>
             </div>
@@ -191,14 +265,14 @@ export function App() {
         )}
 
         {/* Comparativo de 1º e 2º Turno */}
-        {activeSecaoData ? (
+        {activeSecaoData?.primeiroTurno ? (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-slate-800">
-                Votação Apurada na Seção {activeSecaoData.numero}
+                Votação Apurada • {currentMuniInfo?.nome} (Seção {activeSecaoData.numero})
               </h3>
-              <span className="text-xs text-slate-500">
-                Comparativo de Turnos
+              <span className="text-xs text-slate-500 font-medium">
+                Fonte: Tribunal Superior Eleitoral (TSE)
               </span>
             </div>
 
@@ -206,23 +280,37 @@ export function App() {
               {/* 1º Turno */}
               <TurnoCard
                 titulo="1º Turno"
-                subtitulo="Eleição Geral Ordinária 2026"
+                subtitulo={`Eleição Oficial • ${currentMuniInfo?.nome}`}
                 data={activeSecaoData.primeiroTurno}
                 corDestaque="blue"
               />
 
               {/* 2º Turno */}
-              <TurnoCard
-                titulo="2º Turno"
-                subtitulo="Eleição Geral Ordinária 2026"
-                data={activeSecaoData.segundoTurno}
-                corDestaque="indigo"
-              />
+              {activeSecaoData.segundoTurno ? (
+                <TurnoCard
+                  titulo="2º Turno"
+                  subtitulo={`Eleição Oficial • ${currentMuniInfo?.nome}`}
+                  data={activeSecaoData.segundoTurno}
+                  corDestaque="indigo"
+                />
+              ) : (
+                <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-8 flex flex-col items-center justify-center text-center text-slate-400">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
+                    <span className="font-bold text-lg">1T</span>
+                  </div>
+                  <h4 className="text-sm font-semibold text-slate-700">Eleição Definida em 1º Turno</h4>
+                  <p className="text-xs text-slate-500 mt-1 max-w-xs">
+                    Nesta localidade o pleito foi decidido no 1º turno ou o município possui menos de 200 mil eleitores.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-12 text-center text-slate-400">
-            <p className="text-base font-medium">Selecione uma Seção Eleitoral acima para visualizar os votos computados.</p>
+            <p className="text-base font-medium">
+              {loading ? 'Consultando base local SQLite / TSE...' : 'Selecione uma Seção Eleitoral acima para visualizar os votos computados.'}
+            </p>
           </div>
         )}
       </main>

@@ -43,6 +43,13 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
   onSelectSecao,
   loading = false,
 }) => {
+  const [buscaMuni, setBuscaMuni] = React.useState('');
+
+  const municipiosFiltrados = React.useMemo(() => {
+    if (!buscaMuni.trim()) return municipios;
+    const termo = buscaMuni.toLowerCase().trim();
+    return municipios.filter((m) => m.nome.toLowerCase().includes(termo));
+  }, [municipios, buscaMuni]);
   return (
     <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6 mb-6">
       <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
@@ -75,9 +82,20 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
 
         {/* 2. Município */}
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
-            2. Município
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              2. Município {municipios.length > 0 && `(${municipios.length})`}
+            </label>
+          </div>
+          {municipios.length > 10 && (
+            <input
+              type="text"
+              placeholder="🔍 Filtrar cidade..."
+              value={buscaMuni}
+              onChange={(e) => setBuscaMuni(e.target.value)}
+              className="w-full mb-1.5 px-2.5 py-1 text-xs bg-slate-50 border border-slate-200 rounded-md focus:ring-1 focus:ring-blue-500 text-slate-700"
+            />
+          )}
           <select
             disabled={!selectedEstado}
             value={selectedMunicipio}
@@ -85,7 +103,7 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
             className="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 transition disabled:opacity-50 disabled:bg-slate-100"
           >
             <option value="">Selecione o Município</option>
-            {municipios.map((m) => (
+            {municipiosFiltrados.map((m) => (
               <option key={m.codigoTse} value={m.codigoTse}>
                 {m.nome}
               </option>
