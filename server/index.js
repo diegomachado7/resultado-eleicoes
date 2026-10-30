@@ -136,9 +136,10 @@ app.get('/api/resultado-secao', async (req, res) => {
     const codigoMunicipio = (req.query.codigoMunicipio || '').toString();
     const zonaId = (req.query.zonaId || '').toString();
     const secaoId = (req.query.secaoId || '').toString();
+    const ano = parseInt(req.query.ano || '2024', 10);
 
     // Obtém resultado oficial da eleição consolidada do município no TSE / SQLite
-    const apuracao = await getOuSincronizaApuracao(uf, codigoMunicipio);
+    const apuracao = await getOuSincronizaApuracao(uf, codigoMunicipio, ano);
 
     res.json({
       id: secaoId,

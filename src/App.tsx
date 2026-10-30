@@ -322,10 +322,27 @@ export function App() {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-12 text-center text-slate-400">
-            <p className="text-base font-medium">
-              {loading ? 'Consultando base local SQLite / TSE...' : 'Selecione uma Seção Eleitoral acima para visualizar os votos computados.'}
-            </p>
+          <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-12 text-center text-slate-500">
+            {selectedAno === 2026 ? (
+              <div className="max-w-md mx-auto flex flex-col items-center">
+                <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-2xl font-bold mb-4 shadow-xs border border-amber-300">
+                  ⚖️
+                </div>
+                <h4 className="text-lg font-bold text-emerald-950 mb-2">Eleições Gerais 2026</h4>
+                <p className="text-sm text-slate-600 mb-4 leading-relaxed">
+                  O ano eleitoral de <strong>2026</strong> já está mapeado no sistema. Os arquivos oficiais e boletins de urna (BU) consolidados por seção são disponibilizados pelo TSE após a homologação e fechamento dos relatórios oficiais do pleito.
+                </p>
+                <div className="inline-flex items-center gap-2 text-xs bg-emerald-50 text-emerald-900 border border-emerald-300 px-4 py-2 rounded-lg font-medium">
+                  <span>🗳️ <strong>1º Turno:</strong> {currentAnoObj.dataPrimeiroTurno}</span>
+                  <span>•</span>
+                  <span><strong>2º Turno:</strong> {currentAnoObj.dataSegundoTurno}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-base font-medium">
+                {loading ? 'Consultando base local SQLite / TSE...' : 'Selecione uma Seção Eleitoral acima para visualizar os votos computados.'}
+              </p>
+            )}
           </div>
         )}
       </main>

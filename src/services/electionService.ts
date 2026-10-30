@@ -3,6 +3,13 @@ import { ELEICAO_DATA, ESTADOS_BRASIL } from '../data/mockElections';
 
 export const ANOS_ELEICAO: AnoEleicao[] = [
   {
+    ano: 2026,
+    label: '2026 - Eleições Gerais (Presidente e Governador)',
+    tipo: 'Geral',
+    dataPrimeiroTurno: '04/10/2026',
+    dataSegundoTurno: '25/10/2026'
+  },
+  {
     ano: 2024,
     label: '2024 - Eleições Municipais (Prefeito e Vereador)',
     tipo: 'Municipal',

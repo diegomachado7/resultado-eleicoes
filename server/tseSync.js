@@ -138,21 +138,21 @@ function parseTseNumber(val) {
 /**
  * Obtém ou sincroniza a apuração do município (1º e 2º Turno) da eleição oficial
  */
-export async function getOuSincronizaApuracao(uf, codigoMunicipio) {
+export async function getOuSincronizaApuracao(uf, codigoMunicipio, ano = 2024) {
   const ufUpper = uf.toUpperCase();
   const ufLower = uf.toLowerCase();
 
   // Verifica se já temos no banco de dados SQLite
   const cached1T = db.prepare(`
     SELECT * FROM apuracao_municipio 
-    WHERE codigo_municipio = ? AND uf = ? AND turno = 1
-  `).get(codigoMunicipio, ufUpper);
+    WHERE codigo_municipio = ? AND uf = ? AND ano = ? AND turno = 1
+  `).get(codigoMunicipio, ufUpper, ano);
 
   if (cached1T) {
     const cached2T = db.prepare(`
       SELECT * FROM apuracao_municipio 
-      WHERE codigo_municipio = ? AND uf = ? AND turno = 2
-    `).get(codigoMunicipio, ufUpper);
+      WHERE codigo_municipio = ? AND uf = ? AND ano = ? AND turno = 2
+    `).get(codigoMunicipio, ufUpper, ano);
 
     return {
       turno1: formatarResultadoDb(cached1T),
@@ -161,29 +161,36 @@ export async function getOuSincronizaApuracao(uf, codigoMunicipio) {
   }
 
   // Se não estiver no cache, busca no TSE
-  console.log(`[TSE Sync] Buscando resultados oficiais de ${codigoMunicipio} (${ufUpper})...`);
+  console.log(`[TSE Sync] Buscando resultados oficiais de ${codigoMunicipio} (${ufUpper}) para ano ${ano}...`);
 
   let resultado1T = null;
   let resultado2T = null;
 
   try {
-    // 1º Turno (Eleição 619 de 2024 para Prefeito cargo 11)
-    const url1T = `${TSE_BASE}/ele2024/619/dados/${ufLower}/${ufLower}${codigoMunicipio}-c0011-e000619-u.json`;
+    // Busca do TSE conforme o ano
+    const eleicao1TId = ano === 2024 ? '619' : ano === 2022 ? '544' : '619';
+    const cargoId = ano === 2022 || ano === 2026 ? '0001' : '0011'; // 0001: Presidente, 0011: Prefeito
+    const cargoNome = ano === 2022 || ano === 2026 ? 'Presidente' : 'Prefeito';
+
+    const url1T = `${TSE_BASE}/ele${ano}/${eleicao1TId}/dados/${ufLower}/${ufLower}${codigoMunicipio}-c${cargoId}-e000${eleicao1TId}-u.json`;
     const data1T = await fetchTSE(url1T);
     resultado1T = parseTseResult(data1T, 1);
-    salvarResultadoDb(codigoMunicipio, ufUpper, 2024, 1, 'Prefeito', resultado1T);
+    salvarResultadoDb(codigoMunicipio, ufUpper, ano, 1, cargoNome, resultado1T);
   } catch (err) {
-    console.warn(`[TSE Sync] Não foi possível carregar 1º turno para ${codigoMunicipio}: ${err.message}`);
+    console.warn(`[TSE Sync] Não foi possível carregar 1º turno (${ano}) para ${codigoMunicipio}: ${err.message}`);
   }
 
   try {
-    // 2º Turno (Eleição 620 de 2024 para Prefeito cargo 11, se houver)
-    const url2T = `${TSE_BASE}/ele2024/620/dados/${ufLower}/${ufLower}${codigoMunicipio}-c0011-e000620-u.json`;
+    const eleicao2TId = ano === 2024 ? '620' : ano === 2022 ? '545' : '620';
+    const cargoId = ano === 2022 || ano === 2026 ? '0001' : '0011';
+    const cargoNome = ano === 2022 || ano === 2026 ? 'Presidente' : 'Prefeito';
+
+    const url2T = `${TSE_BASE}/ele${ano}/${eleicao2TId}/dados/${ufLower}/${ufLower}${codigoMunicipio}-c${cargoId}-e000${eleicao2TId}-u.json`;
     const data2T = await fetchTSE(url2T);
     resultado2T = parseTseResult(data2T, 2);
-    salvarResultadoDb(codigoMunicipio, ufUpper, 2024, 2, 'Prefeito', resultado2T);
+    salvarResultadoDb(codigoMunicipio, ufUpper, ano, 2, cargoNome, resultado2T);
   } catch {
-    // É perfeitamente normal cidades sem 2º turno não terem arquivo na eleição 620
+    // É perfeitamente normal cidades sem 2º turno não terem arquivo
   }
 
   return {
