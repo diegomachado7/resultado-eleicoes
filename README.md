@@ -1,53 +1,47 @@
 # 🗳️ Painel de Resultados das Eleições
 
-Aplicação web interativa para consulta detalhada, comparação e análise visual dos resultados eleitorais oficiais do Tribunal Superior Eleitoral (**TSE**), com persistência local em **SQLite**.
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vite-8.x-646CFF?logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/TailwindCSS-v4-06B6D4?logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/SQLite-better--sqlite3-003B57?logo=sqlite&logoColor=white" alt="SQLite" />
+  <img src="https://img.shields.io/badge/Node.js-Express-339933?logo=node.js&logoColor=white" alt="Node.js" />
+  <img src="https://img.shields.io/badge/Dados-TSE_Oficial-008000" alt="TSE" />
+</p>
+
+Aplicação web interativa para consulta, auditoria e comparação dos resultados eleitorais oficiais do Tribunal Superior Eleitoral (**TSE**), com persistência local em **SQLite** para máxima velocidade de resposta.
 
 ---
 
-## 📌 Funcionalidades Principais
+## 📌 Funcionalidades
 
-- **Consulta Simples Hierárquica:**
-  - Seleção por **Ano da Eleição** (ex: 2024, 2022).
-  - Filtro em cascata: **TRE (Estado) ➔ Município ➔ Zona Eleitoral ➔ Local de Votação (Colégio) ➔ Seção (Urna)**.
-  - Resultados detalhados por turno (**1º Turno** e **2º Turno**).
-  - Métricas de votos apurados, abstenção, comparecimento, brancos, nulos e votos válidos.
+### 🔍 Consulta Simples em Cascata
+- Seleção por **Ano da Eleição** (ex: 2024, 2022).
+- Navegação hierárquica completa:
+  - **TSE (Brasil) ➔ TRE (Estado) ➔ Município ➔ Zona Eleitoral ➔ Local de Votação (Colégio) ➔ Seção (Urna Eletrônica)**.
+- Resultados discriminados por turno (**1º Turno** e **2º Turno**).
+- Métricas consolidadas:
+  - Total de votos apurados, abstenção e comparecimento.
+  - Votos nominais, brancos e nulos.
 
-- **Comparativo entre Seções:**
-  - Comparação lado a lado entre duas seções eleitorais distintas.
-  - Análise de discrepâncias, diferenças percentuais e desvio de abstenção.
+### ⚖️ Comparativo entre Seções
+- Seleção e confronto direto entre duas seções eleitorais distintas.
+- Visualização lado a lado de distribuição percentual de votos por candidato.
+- Cálculo de discrepâncias e variação na taxa de abstenção.
 
-- **Analytics Visuais e Gráficos:**
-  - Gráficos de barras interativos com **Recharts** para distribuição e comparação de votos.
-  - Identidade visual oficial: paleta verde e amarela nacional, com destaque visual vermelho para o Partido dos Trabalhadores (**PT**).
+### 📊 Analytics & Visualização
+- Gráficos interativos construídos com **Recharts**.
+- Identidade visual temática brasileira (verde e amarelo), com destaque visual em vermelho para o Partido dos Trabalhadores (**PT**).
 
-- **Sincronização Oficial TSE & Cache Local:**
-  - Backend integrado consumindo dados abertos da API do TSE.
-  - Banco de dados local **SQLite** (`better-sqlite3`) para cache e resposta ultrarrápida após a primeira sincronização.
-  - Scripts CLI para sincronização sob demanda por UF.
-
----
-
-## 🛠️ Tecnologias Utilizadas
-
-- **Frontend:**
-  - [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
-  - [Vite](https://vite.dev/)
-  - [Tailwind CSS v4](https://tailwindcss.com/)
-  - [Recharts](https://recharts.org/) (Gráficos e visualizações)
-  - [Lucide React](https://lucide.dev/) (Ícones)
-- **Backend:**
-  - [Node.js](https://nodejs.org/) (ES Modules)
-  - [Express](https://expressjs.com/)
-  - [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) (SQLite local)
-  - [CORS](https://github.com/expressjs/cors)
-- **Tooling:**
-  - [Concurrently](https://github.com/open-cli-tools/concurrently) (execução paralela de front e back em desenvolvimento)
+### ⚡ Sincronização TSE & Cache Local
+- Sincronização automática e sob demanda da API pública do TSE.
+- Persistência e cache em banco local **SQLite** (`better-sqlite3`), reduzindo latência e evitando bloqueios por requisições repetidas.
+- Scripts de sincronização via terminal por estado (UF).
 
 ---
 
-## 🏛️ Estrutura do Voto e Hierarquia
-
-A navegação e a modelagem dos dados seguem estritamente a hierarquia do TSE:
+## 🏛️ Hierarquia e Estrutura do Voto
 
 ```mermaid
 flowchart TD
@@ -63,92 +57,106 @@ flowchart TD
 
 ---
 
-## 🚀 Como Executar o Projeto
+## 🛠️ Tecnologias
+
+- **Frontend:**
+  - [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
+  - [Vite](https://vite.dev/)
+  - [Tailwind CSS v4](https://tailwindcss.com/)
+  - [Recharts](https://recharts.org/)
+  - [Lucide React](https://lucide.dev/)
+- **Backend:**
+  - [Node.js](https://nodejs.org/) (ES Modules)
+  - [Express](https://expressjs.com/)
+  - [better-sqlite3](https://github.com/WiseLibs/better-sqlite3)
+- **Ferramentas:**
+  - [Concurrently](https://github.com/open-cli-tools/concurrently)
+
+---
+
+## 🚀 Como Executar
 
 ### Pré-requisitos
-- [Node.js](https://nodejs.org/) versão 18 ou superior instalado.
-- Gerenciador de pacotes `npm`.
+- [Node.js](https://nodejs.org/) (versão 18 ou superior)
+- Gerenciador de pacotes `npm`
 
 ### Instalação
 
-1. Clone o repositório ou navegue até o diretório do projeto:
 ```bash
-git clone https://github.com/seu-usuario/resultado-eleicoes.git
-cd resultado-eleicoes
-```
+# 1. Clonar o repositório
+git clone https://github.com/diegomachado7/resultado-eleicoes.git
 
-2. Instale as dependências:
-```bash
+# 2. Entrar na pasta do projeto
+cd resultado-eleicoes
+
+# 3. Instalar as dependências
 npm install
 ```
 
-### Executando em Modo de Desenvolvimento
+### Executar em Desenvolvimento
 
-Para rodar simultaneamente o servidor backend (`localhost:3001`) e a aplicação web Vite (`localhost:5173`):
+Para rodar o backend Express e a aplicação web Vite juntos:
 
 ```bash
 npm run dev
 ```
 
-Acesse no navegador: **`http://localhost:5173`**
+Abra no navegador: **[http://localhost:5173](http://localhost:5173)**  
+A API REST estará rodando em: **`http://localhost:3001`**
 
 ---
 
-## ⚙️ Scripts Disponíveis
+## 📜 Scripts Disponíveis
 
 | Comando | Descrição |
 | :--- | :--- |
-| `npm run dev` | Inicia o backend Express e o frontend Vite em paralelo. |
-| `npm run server` | Inicia apenas o servidor backend com SQLite na porta `3001`. |
-| `npm run dev:client` | Inicia apenas o servidor de desenvolvimento do Vite. |
-| `npm run sync` | Executa o script CLI de sincronização do TSE para todas as UFs. |
-| `npm run sync:sp` | Executa a sincronização do TSE especificamente para o estado de São Paulo (`SP`). |
-| `npm run build` | Compila o TypeScript e gera o build de produção via Vite na pasta `dist/`. |
-| `npm run preview` | Executa a pré-visualização local do build de produção. |
+| `npm run dev` | Inicia o backend Express (`:3001`) e o frontend Vite (`:5173`) em paralelo. |
+| `npm run server` | Inicia somente o servidor backend Express com SQLite. |
+| `npm run dev:client` | Inicia somente o servidor de desenvolvimento do frontend Vite. |
+| `npm run sync` | Sincroniza dados oficiais do TSE via CLI para a base local. |
+| `npm run sync:sp` | Sincroniza dados eleitorais oficiais de São Paulo (`SP`). |
+| `npm run build` | Valida tipagens com `tsc` e gera build otimizado para produção. |
+| `npm run preview` | Pré-visualiza localmente a versão de produção gerada na pasta `dist/`. |
 
 ---
 
-## 📂 Estrutura de Pastas
+## 📁 Estrutura de Diretórios
 
 ```text
 resultado-eleicoes/
-├── public/                 # Arquivos estáticos
-├── server/                 # Backend Node.js + Express
-│   ├── database.js         # Configuração e tabelas do SQLite (better-sqlite3)
-│   ├── index.js            # Endpoints da API REST
+├── server/                 # Backend Express & Banco SQLite
+│   ├── database.js         # Schema e inicialização das tabelas SQLite
+│   ├── index.js            # Endpoints REST da API
 │   ├── sync-cli.js         # Script CLI para disparar sincronização com TSE
-│   └── tseSync.js          # Lógica de integração e extração dos dados do TSE
+│   └── tseSync.js          # Consumo dos dados abertos do TSE
 ├── src/                    # Frontend React + TypeScript
-│   ├── assets/             # Imagens e logotipos
-│   ├── components/         # Componentes modulares de UI e gráficos
+│   ├── assets/             # Recursos estáticos e imagens
+│   ├── components/         # Componentes de interface e gráficos
 │   │   ├── ComparativoAnalytics.tsx
 │   │   ├── ComparativoPage.tsx
 │   │   ├── FilterSelector.tsx
 │   │   ├── SecaoSelector.tsx
 │   │   ├── TurnoAnalytics.tsx
 │   │   └── TurnoCard.tsx
-│   ├── data/               # Mocks e dados auxiliares
-│   ├── services/           # Comunicação com a API backend (electionService)
-│   ├── types/              # Tipagens TypeScript da eleição
-│   ├── App.tsx             # Componente raiz e controle de navegação
-│   ├── index.css           # Estilos globais e Tailwind CSS
-│   └── main.tsx            # Ponto de entrada do React
-├── agents.md               # Diretrizes de desenvolvimento e arquitetura
+│   ├── data/               # Mocks e dados iniciais
+│   ├── services/           # Comunicação com a API (electionService)
+│   ├── types/              # Tipos TypeScript
+│   ├── App.tsx             # Componente raiz e navegação
+│   └── main.tsx            # Ponto de entrada React
 ├── eleicoes.db             # Banco de dados local SQLite
-├── package.json            # Dependências e scripts
-├── tsconfig.json           # Configurações TypeScript
-└── vite.config.ts          # Configuração do Vite
+├── package.json
+└── vite.config.ts
 ```
 
 ---
 
-## 📖 Documentação e Fontes Oficiais
+## 🌐 Documentação Oficial TSE
 
-- [TSE - Informações Técnicas sobre a Divulgação de Resultados](https://www.tse.jus.br/eleicoes/informacoes-tecnicas-sobre-a-divulgacao-de-resultados)
+- [TSE - Informações Técnicas sobre Divulgação de Resultados](https://www.tse.jus.br/eleicoes/informacoes-tecnicas-sobre-a-divulgacao-de-resultados)
 - [Divulgação de Candidaturas e Contas Eleitorais](https://divulgacandcontas.tse.jus.br/)
 
 ---
 
 ## 📄 Licença
 
-Este projeto é de caráter informativo e educacional para visualização de dados públicos das eleições brasileiras.
+Distribuído sob a licença MIT. Consulte `LICENSE` para mais informações.
