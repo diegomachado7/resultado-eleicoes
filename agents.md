@@ -5,8 +5,8 @@
 
 ## Git
 * No final de cada implementação:
-* Faça commit automático com uma descrição clara do que foi feito.
-* Envie para o remoto.
+ * Faça commit automático com uma descrição clara do que foi feito.
+ * Envie para o remoto.
 
 ## Arquitetura
 * React Web
@@ -30,7 +30,6 @@
 
 ## Layout
 * Tons de verde e amarelo
-* Para o partido do PT, o tom de cor é vermelho.
 
 ## Páginas
 * Home com menu
