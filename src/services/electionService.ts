@@ -1,5 +1,29 @@
-import { SecaoData, Municipio } from '../types/election';
+import { SecaoData, Municipio, AnoEleicao } from '../types/election';
 import { ELEICAO_DATA, ESTADOS_BRASIL } from '../data/mockElections';
+
+export const ANOS_ELEICAO: AnoEleicao[] = [
+  {
+    ano: 2024,
+    label: '2024 - Eleições Municipais (Prefeito e Vereador)',
+    tipo: 'Municipal',
+    dataPrimeiroTurno: '06/10/2024',
+    dataSegundoTurno: '27/10/2024'
+  },
+  {
+    ano: 2022,
+    label: '2022 - Eleições Gerais (Presidente e Governador)',
+    tipo: 'Geral',
+    dataPrimeiroTurno: '02/10/2022',
+    dataSegundoTurno: '30/10/2022'
+  },
+  {
+    ano: 2020,
+    label: '2020 - Eleições Municipais (Prefeito e Vereador)',
+    tipo: 'Municipal',
+    dataPrimeiroTurno: '15/11/2020',
+    dataSegundoTurno: '29/11/2020'
+  }
+];
 
 export interface SqliteStats {
   database: string;
@@ -83,7 +107,8 @@ export class ElectionService {
     codigoMunicipio: string,
     zonaId: string,
     localId: string,
-    secaoId: string
+    secaoId: string,
+    ano: number = 2024
   ): Promise<SecaoData | null> {
     try {
       const query = new URLSearchParams({
@@ -91,7 +116,8 @@ export class ElectionService {
         codigoMunicipio,
         zonaId,
         localId,
-        secaoId
+        secaoId,
+        ano: String(ano)
       });
       const res = await fetch(`/api/resultado-secao?${query.toString()}`);
       if (res.ok) {

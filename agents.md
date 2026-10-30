@@ -4,7 +4,9 @@
 - Me proponha a melhor solução para o problema seguindo os padrões internacionais.
 
 ## Git
-- No final de cada implementação, pode fazer o commit automático com uma descrição clara do que foi feito.
+- No final de cada implementação:
+-- Faça commit automático com uma descrição clara do que foi feito.
+-- Envie para o remoto.
 
 ## Arquitetura
 - React Web

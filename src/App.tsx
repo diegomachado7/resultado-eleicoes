@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { FilterSelector } from './components/FilterSelector';
 import { TurnoCard } from './components/TurnoCard';
-import { ElectionService, SqliteStats } from './services/electionService';
+import { ElectionService, ANOS_ELEICAO, SqliteStats } from './services/electionService';
 import { Municipio, ZonaEleitoral, LocalVotacao, SecaoData } from './types/election';
 
 export function App() {
+  const [selectedAno, setSelectedAno] = useState<number>(2024);
   const [estados, setEstados] = useState<{ sigla: string; nome: string }[]>([]);
   const [selectedEstado, setSelectedEstado] = useState<string>('SP');
 
@@ -24,6 +25,8 @@ export function App() {
   const [activeSecaoData, setActiveSecaoData] = useState<SecaoData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [dbStats, setDbStats] = useState<SqliteStats | null>(null);
+
+  const currentAnoObj = ANOS_ELEICAO.find((a) => a.ano === selectedAno) || ANOS_ELEICAO[0];
 
   // 1. Carregar Estados e Stats do SQLite
   useEffect(() => {
@@ -148,7 +151,7 @@ export function App() {
     }
   }, [selectedLocal, locais]);
 
-  // 6. Quando muda Seção -> Carrega resultado detalhado da apuração
+  // 6. Quando muda Seção ou Ano -> Carrega resultado detalhado da apuração
   useEffect(() => {
     if (!selectedSecao || !selectedMunicipio) {
       setActiveSecaoData(null);
@@ -162,44 +165,45 @@ export function App() {
         selectedMunicipio,
         selectedZona,
         selectedLocal,
-        selectedSecao
+        selectedSecao,
+        selectedAno
       );
       setActiveSecaoData(data);
       setLoading(false);
     }
 
     loadSecaoVotacao();
-  }, [selectedSecao, selectedMunicipio, selectedZona, selectedLocal, selectedEstado]);
+  }, [selectedSecao, selectedMunicipio, selectedZona, selectedLocal, selectedEstado, selectedAno]);
 
   const currentLocalInfo = locais.find((l) => l.id === selectedLocal);
   const currentMuniInfo = municipios.find((m) => m.codigoTse === selectedMunicipio);
   const currentZonaInfo = zonas.find((z) => z.id === selectedZona);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800">
-      {/* Topo / Header Oficial */}
-      <header className="bg-slate-900 text-white border-b border-slate-800 shadow-md">
+    <div className="min-h-screen bg-emerald-950/5 text-slate-800">
+      {/* Topo / Header Oficial nas cores Verde e Amarelo do Brasil / Justiça Eleitoral */}
+      <header className="bg-emerald-900 text-white border-b-4 border-amber-400 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <div className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-400 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-emerald-500/30 mb-1">
-                TSE • Justiça Eleitoral
+              <div className="inline-flex items-center gap-2 bg-amber-400 text-emerald-950 text-xs px-2.5 py-0.5 rounded-full font-bold shadow-xs mb-1">
+                BRASIL • TSE / TRE • JUSTIÇA ELEITORAL
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                Divulgação de Resultados • Dados Oficiais do TSE
+              <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
+                Divulgação de Resultados Oficiais
               </h1>
-              <p className="text-xs text-slate-400">
-                Consulta granular de Boletim de Urna (BU) e apuração com persistência em SQLite Local
+              <p className="text-xs text-emerald-100/80">
+                Consulta granular por Ano, Estado, Município, Zona, Local e Seção (Boletim de Urna - BU)
               </p>
             </div>
 
             <div className="flex items-center gap-3">
               {dbStats && (
-                <div className="bg-slate-800 px-3.5 py-2 rounded-lg border border-slate-700 text-right">
-                  <span className="text-[10px] text-emerald-400 uppercase tracking-wider block font-semibold">
-                    ● SQLite Conectado
+                <div className="bg-emerald-950/60 px-3.5 py-2 rounded-lg border border-emerald-700/60 text-right">
+                  <span className="text-[10px] text-amber-400 uppercase tracking-wider block font-bold">
+                    ● Banco Local SQLite Conectado
                   </span>
-                  <span className="text-xs font-semibold text-slate-200">
+                  <span className="text-xs font-semibold text-emerald-100">
                     {dbStats.municipios} cidades • {dbStats.secoes.toLocaleString('pt-BR')} seções
                   </span>
                 </div>
@@ -213,6 +217,9 @@ export function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Seletor em Cascata */}
         <FilterSelector
+          anos={ANOS_ELEICAO}
+          selectedAno={selectedAno}
+          onSelectAno={setSelectedAno}
           estados={estados}
           selectedEstado={selectedEstado}
           onSelectEstado={setSelectedEstado}
@@ -233,13 +240,18 @@ export function App() {
 
         {/* Resumo da Localização e Identificação da Urna */}
         {activeSecaoData && currentLocalInfo && (
-          <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-5 mb-6">
+          <div className="bg-white rounded-xl shadow-xs border-l-4 border-l-emerald-600 border border-slate-200 p-5 mb-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">
-                  Boletim de Urna • Detalhes da Seção
-                </span>
-                <h3 className="text-lg font-bold text-slate-900 mt-0.5">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    Eleição {selectedAno} • {currentAnoObj.tipo}
+                  </span>
+                  <span className="text-xs font-bold text-amber-800 uppercase tracking-wider bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                    Boletim de Urna Oficial
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mt-1">
                   {currentLocalInfo.nome} — Seção nº {activeSecaoData.numero}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -267,40 +279,43 @@ export function App() {
         {/* Comparativo de 1º e 2º Turno */}
         {activeSecaoData?.primeiroTurno ? (
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-slate-800">
-                Votação Apurada • {currentMuniInfo?.nome} (Seção {activeSecaoData.numero})
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+              <h3 className="text-base font-bold text-emerald-950 flex items-center gap-2">
+                <span>Votação Apurada • {currentMuniInfo?.nome} (Seção {activeSecaoData.numero})</span>
               </h3>
-              <span className="text-xs text-slate-500 font-medium">
-                Fonte: Tribunal Superior Eleitoral (TSE)
-              </span>
+              <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Dados Oficiais: Tribunal Superior Eleitoral (TSE)</span>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* 1º Turno */}
               <TurnoCard
                 titulo="1º Turno"
-                subtitulo={`Eleição Oficial • ${currentMuniInfo?.nome}`}
+                subtitulo={`Eleição Oficial ${selectedAno} • ${currentMuniInfo?.nome}`}
                 data={activeSecaoData.primeiroTurno}
-                corDestaque="blue"
+                dataEleicao={currentAnoObj.dataPrimeiroTurno}
+                corDestaque="emerald"
               />
 
               {/* 2º Turno */}
               {activeSecaoData.segundoTurno ? (
                 <TurnoCard
                   titulo="2º Turno"
-                  subtitulo={`Eleição Oficial • ${currentMuniInfo?.nome}`}
+                  subtitulo={`Eleição Oficial ${selectedAno} • ${currentMuniInfo?.nome}`}
                   data={activeSecaoData.segundoTurno}
-                  corDestaque="indigo"
+                  dataEleicao={currentAnoObj.dataSegundoTurno}
+                  corDestaque="amber"
                 />
               ) : (
                 <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-8 flex flex-col items-center justify-center text-center text-slate-400">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
+                  <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mb-3">
                     <span className="font-bold text-lg">1T</span>
                   </div>
-                  <h4 className="text-sm font-semibold text-slate-700">Eleição Definida em 1º Turno</h4>
+                  <h4 className="text-sm font-semibold text-slate-800">Pleito Definido em 1º Turno</h4>
                   <p className="text-xs text-slate-500 mt-1 max-w-xs">
-                    Nesta localidade o pleito foi decidido no 1º turno ou o município possui menos de 200 mil eleitores.
+                    Nesta localidade o pleito foi encerrado em 1º turno em {currentAnoObj.dataPrimeiroTurno} ou o município possui menos de 200 mil eleitores.
                   </p>
                 </div>
               )}
@@ -319,3 +334,4 @@ export function App() {
 }
 
 export default App;
+

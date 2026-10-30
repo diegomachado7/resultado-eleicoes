@@ -10,6 +10,7 @@ export interface CandidateVote {
 
 export interface TurnoResult {
   turno: 1 | 2;
+  dataEleicao?: string;
   totalVotosApurados: number;
   votosValidos: number;
   votosBrancos: number;
@@ -23,6 +24,7 @@ export interface SecaoData {
   id: string; // Ex: '0015'
   numero: string;
   urnaEletronica: string;
+  anoEleicao?: number;
   primeiroTurno: TurnoResult;
   segundoTurno?: TurnoResult;
 }
@@ -53,3 +55,12 @@ export interface Estado {
   nome: string;
   municipios: Municipio[];
 }
+
+export interface AnoEleicao {
+  ano: number;
+  label: string;
+  tipo: 'Municipal' | 'Geral';
+  dataPrimeiroTurno: string;
+  dataSegundoTurno: string;
+}
+
