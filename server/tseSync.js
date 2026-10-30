@@ -504,8 +504,35 @@ export async function syncUfConfig(uf) {
   }
 
   console.log(`[TSE Sync] Baixando configuração oficial de ${ufUpper}...`);
-  const url = `${TSE_BASE}/ele2024/arquivo-urna/452/config/${ufLower}/${ufLower}-p000452-cs.json`;
-  const data = await fetchTSE(url);
+  // DF e ZZ (Exterior) não participam de eleições municipais (2024 / pleito 452).
+  // Tentamos primeiro a eleição geral de 2026 (pleito 3220) para DF/ZZ ou se 2024 retornar 404.
+  const urlsToTry = [
+    ...(ufUpper === 'DF' || ufUpper === 'ZZ'
+      ? [
+          `${TSE_BASE}/ele2026/arquivo-urna/3220/config/${ufLower}/${ufLower}-p003220-cs.json`,
+          `${TSE_BASE}/ele2024/arquivo-urna/452/config/${ufLower}/${ufLower}-p000452-cs.json`
+        ]
+      : [
+          `${TSE_BASE}/ele2024/arquivo-urna/452/config/${ufLower}/${ufLower}-p000452-cs.json`,
+          `${TSE_BASE}/ele2026/arquivo-urna/3220/config/${ufLower}/${ufLower}-p003220-cs.json`
+        ])
+  ];
+
+  let data = null;
+  let lastError = null;
+
+  for (const url of urlsToTry) {
+    try {
+      data = await fetchTSE(url);
+      if (data) break;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  if (!data) {
+    throw lastError || new Error(`Não foi possível baixar a configuração da UF ${ufUpper}`);
+  }
 
   const estadoAbr = data.abr?.find((a) => a.cd?.toLowerCase() === ufLower) || data.abr?.[0];
   if (!estadoAbr || !estadoAbr.mu) {

@@ -296,6 +296,23 @@ export function App() {
               loading={loading}
             />
 
+            {/* Aviso informativo especial para DF ou Exterior em eleições municipais */}
+            {(selectedEstado === 'DF' || selectedEstado === 'ZZ') && currentAnoObj.tipo === 'Municipal' && (
+              <div className="bg-amber-50 border border-amber-300 text-amber-900 rounded-xl p-4 mb-6 text-sm flex items-start gap-3 shadow-xs">
+                <span className="text-xl">ℹ️</span>
+                <div>
+                  <strong className="font-bold block">
+                    {selectedEstado === 'DF' ? 'Distrito Federal (Brasília)' : 'Exterior (ZZ)'} e Eleições Municipais:
+                  </strong>
+                  <span>
+                    {selectedEstado === 'DF'
+                      ? 'O Distrito Federal não possui prefeitos nem vereadores (Art. 32 da CF/88), participando exclusivamente de Eleições Gerais (Presidente, Governador, Senador e Deputados). Para consultar os resultados e boletins de urna do DF, selecione um ano de Eleição Geral (ex: 2026 ou 2022).'
+                      : 'Eleitores no Exterior votam exclusivamente para Presidente e Vice-Presidente da República nas Eleições Gerais. Selecione um ano de Eleição Geral (ex: 2026 ou 2022) para consultar as seções.'}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Resumo da Localização e Identificação da Urna */}
             {activeSecaoData && currentLocalInfo && (
               <div className="bg-white rounded-xl shadow-xs border-l-4 border-l-emerald-600 border border-slate-200 p-5 mb-6">

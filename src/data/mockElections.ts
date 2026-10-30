@@ -388,5 +388,65 @@ export const ELEICAO_DATA: Record<string, Estado> = {
         ]
       }
     ]
+  },
+  DF: {
+    sigla: 'DF',
+    nome: 'Distrito Federal',
+    municipios: [
+      {
+        codigoTse: '97012',
+        nome: 'Brasília',
+        zonas: [
+          {
+            id: '0001',
+            numero: '001ª Zona Eleitoral (Asa Sul)',
+            locais: [
+              {
+                id: '1015',
+                numero: '1015',
+                nome: 'Escola Parque 308 Sul',
+                endereco: 'SQS 308 - Asa Sul',
+                bairro: 'Asa Sul',
+                secoes: [
+                  {
+                    id: '0001',
+                    numero: '0001',
+                    urnaEletronica: 'UE2020 - Mod. 19.825.001',
+                    primeiroTurno: {
+                      turno: 1,
+                      eleitoresAptos: 390,
+                      totalVotosApurados: 335,
+                      votosValidos: 325,
+                      votosBrancos: 4,
+                      votosNulos: 6,
+                      abstencoes: 55,
+                      candidatos: [
+                        { numero: '22', nome: 'Candidato 22', partido: 'Partido Liberal', siglaPartido: 'PL', votos: 185, percentual: 56.92 },
+                        { numero: '13', nome: 'Candidato 13', partido: 'Partido dos Trabalhadores', siglaPartido: 'PT', votos: 120, percentual: 36.92 },
+                        { numero: '15', nome: 'Candidato 15', partido: 'Movimento Democrático Brasileiro', siglaPartido: 'MDB', votos: 12, percentual: 3.69 },
+                        { numero: '12', nome: 'Candidato 12', partido: 'Partido Democrático Trabalhista', siglaPartido: 'PDT', votos: 8, percentual: 2.46 },
+                      ]
+                    },
+                    segundoTurno: {
+                      turno: 2,
+                      eleitoresAptos: 390,
+                      totalVotosApurados: 342,
+                      votosValidos: 335,
+                      votosBrancos: 3,
+                      votosNulos: 4,
+                      abstencoes: 48,
+                      candidatos: [
+                        { numero: '22', nome: 'Candidato 22', partido: 'Partido Liberal', siglaPartido: 'PL', votos: 202, percentual: 60.30 },
+                        { numero: '13', nome: 'Candidato 13', partido: 'Partido dos Trabalhadores', siglaPartido: 'PT', votos: 133, percentual: 39.70 },
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
 };
